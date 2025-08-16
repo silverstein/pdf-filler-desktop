@@ -341,14 +341,14 @@
 
         .actions {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 1rem;
             margin-top: 2rem;
             transition: all 0.3s ease;
         }
         
         .upload-area.collapsed .actions {
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 0.5rem;
             margin-top: 1rem;
         }
@@ -430,6 +430,12 @@
 
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        /* Modal spinner */
+        .modal-loading .spinner {
+            border-color: var(--border);
+            border-top-color: var(--accent);
         }
 
         .results {
@@ -627,6 +633,587 @@
             }
         }
         
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+        }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: hidden;
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-overlay.show .modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-large {
+            max-width: 800px;
+            width: 95%;
+            max-height: 90vh;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            color: var(--text);
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: var(--surface-hover);
+            color: var(--error);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .form-field {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-field label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .field-type {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-left: 0.5rem;
+            padding: 0.125rem 0.375rem;
+            background: var(--surface-hover);
+            border-radius: 3px;
+        }
+
+        .form-field input,
+        .form-field select,
+        .form-field textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.875rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-field input:focus,
+        .form-field select:focus,
+        .form-field textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-field input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+
+        .form-field input[type="file"] {
+            padding: 0.375rem;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+        }
+
+        .file-selector {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .file-selector input {
+            flex: 1;
+        }
+
+        .file-selector button {
+            padding: 0.75rem 1rem;
+            white-space: nowrap;
+        }
+
+        .progress-container {
+            background: var(--surface-hover);
+            border-radius: 4px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-left: 3px solid var(--accent);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--surface);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            font-size: 0.875rem;
+            opacity: 0.8;
+            margin-bottom: 0.5rem;
+        }
+
+        .results-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .result-stat {
+            text-align: center;
+            padding: 0.75rem;
+            background: var(--surface-hover);
+            border-radius: 4px;
+        }
+
+        .result-stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .result-stat-label {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-top: 0.25rem;
+        }
+
+        .error-list {
+            max-height: 150px;
+            overflow-y: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+
+        .error-item {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.875rem;
+        }
+
+        .error-item:last-child {
+            border-bottom: none;
+        }
+
+        .error-row {
+            font-weight: 500;
+            color: var(--error);
+        }
+
+        .error-message {
+            opacity: 0.8;
+            margin-top: 0.25rem;
+        }
+
+        .naming-pattern-help {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-top: 0.25rem;
+            line-height: 1.4;
+        }
+
+        .bulk-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .bulk-actions .btn-secondary {
+            flex: 1;
+        }
+
+        .modal-loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .modal-loading .spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 1rem;
+        }
+
+        .password-section {
+            background: var(--surface-hover);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+            border-left: 3px solid var(--warning);
+        }
+
+        .password-section h4 {
+            margin-bottom: 0.5rem;
+            color: var(--warning);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: var(--surface-hover);
+        }
+
+        /* Theme-specific modal styles */
+        .theme-brutalist .modal {
+            border-radius: 0;
+            border: 2px solid var(--border);
+            box-shadow: none;
+        }
+
+        .theme-brutalist .modal-header,
+        .theme-brutalist .modal-footer {
+            border-color: var(--border);
+        }
+
+        .theme-brutalist .form-field input,
+        .theme-brutalist .form-field select,
+        .theme-brutalist .form-field textarea {
+            border-radius: 0;
+            border: 2px solid var(--border);
+        }
+
+        .theme-brutalist .btn-primary {
+            border-radius: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: 2px solid var(--border);
+        }
+
+        .theme-brutalist .btn-secondary {
+            border-radius: 0;
+            border: 2px solid var(--border);
+        }
+
+        .theme-glassmorphic .modal {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+        }
+
+        .theme-glassmorphic .form-field input,
+        .theme-glassmorphic .form-field select,
+        .theme-glassmorphic .form-field textarea {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        .theme-neubrutalism .modal {
+            border-radius: 0;
+            border: 4px solid var(--border);
+            box-shadow: 8px 8px 0 var(--border);
+        }
+
+        .theme-neubrutalism .form-field input,
+        .theme-neubrutalism .form-field select,
+        .theme-neubrutalism .form-field textarea {
+            border-radius: 0;
+            border: 3px solid var(--border);
+        }
+
+        .theme-neubrutalism .btn-primary {
+            border-radius: 0;
+            border: 3px solid var(--border);
+            box-shadow: 4px 4px 0 var(--border);
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .theme-neubrutalism .btn-primary:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 var(--border);
+        }
+
+        .theme-mono .modal {
+            border-radius: 0;
+            border: 1px solid var(--border);
+        }
+
+        /* Profile-specific styles */
+        .profile-item {
+            padding: 1.25rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            background: var(--surface);
+            transition: all 0.2s ease;
+        }
+
+        .profile-item:hover {
+            background: var(--surface-hover);
+            border-color: var(--primary);
+        }
+
+        .profile-item.default {
+            border-color: var(--primary);
+            background: var(--primary-bg);
+        }
+
+        .profile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .profile-info {
+            flex: 1;
+        }
+
+        .profile-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .profile-name .default-badge {
+            background: var(--primary);
+            color: white;
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .profile-description {
+            opacity: 0.8;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .profile-tags {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+        }
+
+        .profile-tag {
+            background: var(--surface-hover);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .profile-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            opacity: 0.6;
+            margin-bottom: 0.75rem;
+        }
+
+        .profile-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .profile-actions .icon-btn {
+            width: 28px;
+            height: 28px;
+            font-size: 14px;
+        }
+
+        .profile-fields-preview {
+            background: var(--surface-hover);
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .empty-profiles {
+            text-align: center;
+            padding: 3rem 2rem;
+            opacity: 0.6;
+        }
+
+        .empty-profiles i {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .form-field {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-field label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-field input,
+        .form-field textarea,
+        .form-field select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface);
+            color: var(--text);
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-field input:focus,
+        .form-field textarea:focus,
+        .form-field select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .profile-field {
+            margin-bottom: 1rem;
+        }
+
+        .profile-field label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .profile-field input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .theme-mono .form-field input,
+        .theme-mono .form-field select,
+        .theme-mono .form-field textarea {
+            border-radius: 0;
+            border: 1px solid var(--border);
+        }
+
+        .theme-mono .btn-primary,
+        .theme-mono .btn-secondary {
+            border-radius: 0;
+        }
+
         /* Compact mode for medium screens */
         @media (max-width: 600px) {
             .upload-area {
@@ -638,10 +1225,21 @@
             }
             
             .upload-area.collapsed .actions {
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(3, 1fr);
             }
             
             .action-card {
+                padding: 1rem;
+            }
+
+            .modal {
+                width: 95%;
+                margin: 1rem;
+            }
+
+            .modal-header,
+            .modal-body,
+            .modal-footer {
                 padding: 1rem;
             }
         }
@@ -804,9 +1402,17 @@
                     <h3><i data-lucide="pen-tool" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Fill Form</h3>
                     <p>Auto-fill PDF forms with data</p>
                 </div>
+                <div class="action-card" data-action="bulk-fill">
+                    <h3><i data-lucide="layers" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Bulk Fill</h3>
+                    <p>Fill multiple forms with CSV data</p>
+                </div>
                 <div class="action-card" data-action="validate">
                     <h3><i data-lucide="check-circle" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Validate</h3>
                     <p>Check required fields</p>
+                </div>
+                <div class="action-card" data-action="profiles">
+                    <h3><i data-lucide="user" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Profiles</h3>
+                    <p>Manage saved form data</p>
                 </div>
             </div>
 
@@ -855,12 +1461,355 @@
         </div>
     </div>
 
+    <!-- Form Fill Modal -->
+    <div class="modal-overlay" id="formFillModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i data-lucide="pen-tool" style="width: 20px; height: 20px;"></i>
+                    Fill PDF Form
+                </h3>
+                <button class="modal-close" onclick="closeFormFillModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Password section (shown if PDF is protected) -->
+                <div class="password-section" id="passwordSection" style="display: none;">
+                    <h4>
+                        <i data-lucide="lock" style="width: 16px; height: 16px;"></i>
+                        Password Protected PDF
+                    </h4>
+                    <p>This PDF requires a password to access form fields.</p>
+                    <div class="form-field">
+                        <label for="pdfPassword">PDF Password</label>
+                        <input type="password" id="pdfPassword" placeholder="Enter PDF password">
+                        <button type="button" onclick="submitPassword()" style="margin-top: 0.5rem;" class="btn-primary">
+                            <i data-lucide="unlock" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                            Unlock PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading state -->
+                <div class="modal-loading" id="modalLoading">
+                    <div class="spinner"></div>
+                    <p>Reading form fields...</p>
+                </div>
+
+                <!-- Profile Section -->
+                <div id="profileSection" style="display: none; margin-bottom: 1.5rem;">
+                    <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+                        <select id="profileSelect" style="flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);">
+                            <option value="">Select a profile...</option>
+                        </select>
+                        <button class="btn-secondary" id="loadProfileBtn" onclick="loadSelectedProfile()" disabled>
+                            <i data-lucide="upload" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                            Load
+                        </button>
+                        <button class="btn-secondary" id="saveAsProfileBtn" onclick="openSaveProfileModal()">
+                            <i data-lucide="save" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                            Save as Profile
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Form fields container -->
+                <div id="formFieldsContainer" style="display: none;">
+                    <p style="margin-bottom: 1.5rem; opacity: 0.8;">Fill in the form fields below. Leave fields empty to keep their current values.</p>
+                    <div id="formFields"></div>
+                </div>
+
+                <!-- Error message -->
+                <div id="modalError" style="display: none; color: var(--error); padding: 1rem; background: var(--surface-hover); border-radius: 4px; margin-bottom: 1rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeFormFillModal()">Cancel</button>
+                <button class="btn-primary" id="fillFormBtn" onclick="fillAndSavePDF()" disabled>
+                    <i data-lucide="download" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                    Fill & Save PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Management Modal -->
+    <div class="modal-overlay" id="profileModal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i data-lucide="user" style="width: 20px; height: 20px;"></i>
+                    Profile Manager
+                </h3>
+                <button class="modal-close" onclick="closeProfileModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Profile List Section -->
+                <div id="profileListSection">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h4 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="list" style="width: 18px; height: 18px;"></i>
+                            Saved Profiles
+                        </h4>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <button class="btn-secondary" onclick="exportProfiles()">
+                                <i data-lucide="download" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                                Export
+                            </button>
+                            <button class="btn-secondary" onclick="importProfiles()">
+                                <i data-lucide="upload" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                                Import
+                            </button>
+                            <button class="btn-primary" onclick="openCreateProfileModal()">
+                                <i data-lucide="plus" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                                New Profile
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="profileList" style="max-height: 400px; overflow-y: auto;">
+                        <div class="loading-profiles" style="text-align: center; padding: 2rem; opacity: 0.6;">
+                            <i data-lucide="loader-2" style="width: 24px; height: 24px; animation: spin 1s linear infinite;"></i>
+                            <p style="margin-top: 0.5rem;">Loading profiles...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="profileModalError" style="display: none; color: var(--error); padding: 1rem; background: var(--surface-hover); border-radius: 4px; margin-top: 1rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeProfileModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Profile Modal -->
+    <div class="modal-overlay" id="saveProfileModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i data-lucide="save" style="width: 20px; height: 20px;"></i>
+                    Save Profile
+                </h3>
+                <button class="modal-close" onclick="closeSaveProfileModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-field">
+                    <label for="profileName">Profile Name *</label>
+                    <input type="text" id="profileName" placeholder="e.g., Personal Info, Company Details" required>
+                </div>
+                <div class="form-field">
+                    <label for="profileDescription">Description</label>
+                    <textarea id="profileDescription" placeholder="Brief description of this profile..." rows="3"></textarea>
+                </div>
+                <div class="form-field">
+                    <label for="profileTags">Tags (comma-separated)</label>
+                    <input type="text" id="profileTags" placeholder="e.g., personal, work, address">
+                </div>
+                <div class="form-field">
+                    <label>
+                        <input type="checkbox" id="setAsDefault" style="margin-right: 0.5rem;">
+                        Set as default profile
+                    </label>
+                </div>
+                <div id="saveProfileError" style="display: none; color: var(--error); padding: 1rem; background: var(--surface-hover); border-radius: 4px; margin-top: 1rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeSaveProfileModal()">Cancel</button>
+                <button class="btn-primary" id="saveProfileBtn" onclick="saveProfile()">
+                    <i data-lucide="save" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                    Save Profile
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Profile Modal -->
+    <div class="modal-overlay" id="createProfileModal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3 class="modal-title" id="createProfileTitle">
+                    <i data-lucide="plus" style="width: 20px; height: 20px;"></i>
+                    Create New Profile
+                </h3>
+                <button class="modal-close" onclick="closeCreateProfileModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div>
+                        <div class="form-field">
+                            <label for="createProfileName">Profile Name *</label>
+                            <input type="text" id="createProfileName" placeholder="e.g., Personal Info" required>
+                        </div>
+                        <div class="form-field">
+                            <label for="createProfileDescription">Description</label>
+                            <textarea id="createProfileDescription" placeholder="Brief description..." rows="2"></textarea>
+                        </div>
+                        <div class="form-field">
+                            <label for="createProfileTags">Tags (comma-separated)</label>
+                            <input type="text" id="createProfileTags" placeholder="e.g., personal, work">
+                        </div>
+                        <div class="form-field">
+                            <label>
+                                <input type="checkbox" id="createSetAsDefault" style="margin-right: 0.5rem;">
+                                Set as default profile
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="edit-3" style="width: 18px; height: 18px;"></i>
+                            Profile Data
+                        </h4>
+                        <div id="createProfileFields" style="max-height: 300px; overflow-y: auto; padding: 1rem; background: var(--surface-hover); border-radius: 4px;">
+                            <p style="opacity: 0.6; text-align: center;">Common form fields will appear here</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="createProfileError" style="display: none; color: var(--error); padding: 1rem; background: var(--surface-hover); border-radius: 4px; margin-top: 1rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeCreateProfileModal()">Cancel</button>
+                <button class="btn-primary" id="createProfileBtn" onclick="createProfile()">
+                    <i data-lucide="save" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                    <span id="createProfileBtnText">Create Profile</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for profile import -->
+    <input type="file" id="profileImportInput" accept=".json" style="display: none;">
+
+    <!-- Bulk Fill Modal -->
+    <div class="modal-overlay" id="bulkFillModal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i data-lucide="layers" style="width: 20px; height: 20px;"></i>
+                    Bulk Fill PDFs
+                </h3>
+                <button class="modal-close" onclick="closeBulkFillModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Setup Section -->
+                <div id="bulkSetupSection">
+                    <p style="margin-bottom: 1.5rem; opacity: 0.8;">Fill multiple PDFs using data from a CSV file. Each row in the CSV will create a filled PDF.</p>
+                    
+                    <div class="form-field">
+                        <label for="templatePDF">Template PDF</label>
+                        <div class="file-selector">
+                            <input type="text" id="templatePDF" readonly placeholder="Select your template PDF file...">
+                            <button type="button" class="btn-secondary" onclick="selectTemplatePDF()">
+                                <i data-lucide="file-plus" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                                Browse
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="csvFile">CSV Data File</label>
+                        <div class="file-selector">
+                            <input type="text" id="csvFile" readonly placeholder="Select your CSV data file...">
+                            <button type="button" class="btn-secondary" onclick="selectCSVFile()">
+                                <i data-lucide="table" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                                Browse
+                            </button>
+                        </div>
+                        <small style="opacity: 0.7; margin-top: 0.25rem; display: block;">CSV should have column headers matching form field names</small>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="outputDirectory">Output Directory</label>
+                        <div class="file-selector">
+                            <input type="text" id="outputDirectory" readonly placeholder="Select where to save filled PDFs...">
+                            <button type="button" class="btn-secondary" onclick="selectOutputDirectory()">
+                                <i data-lucide="folder" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                                Browse
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="namingPattern">File Naming Pattern</label>
+                        <input type="text" id="namingPattern" placeholder="filled_{row}_{timestamp}" value="filled_{row}_{timestamp}">
+                        <div class="naming-pattern-help">
+                            Available variables:<br>
+                            • <code>{row}</code> - Row number (1, 2, 3...)<br>
+                            • <code>{timestamp}</code> - Current timestamp<br>
+                            • <code>{column_name}</code> - Any CSV column value (e.g., {name}, {id})
+                        </div>
+                    </div>
+
+                    <!-- Password section (shown if template PDF is protected) -->
+                    <div class="password-section" id="bulkPasswordSection" style="display: none;">
+                        <h4>
+                            <i data-lucide="lock" style="width: 16px; height: 16px;"></i>
+                            Password Protected PDF
+                        </h4>
+                        <p>This template PDF requires a password to access form fields.</p>
+                        <div class="form-field">
+                            <label for="bulkPdfPassword">PDF Password</label>
+                            <input type="password" id="bulkPdfPassword" placeholder="Enter PDF password">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Section -->
+                <div id="bulkProcessingSection" style="display: none;">
+                    <div class="progress-container">
+                        <div class="progress-text" id="bulkProgressText">Preparing to process files...</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="bulkProgressFill"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; opacity: 0.8;">
+                            <span id="bulkProgressCount">0 / 0</span>
+                            <span id="bulkProgressPercent">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="results-summary" id="bulkResultsSummary" style="display: none;">
+                        <div class="result-stat">
+                            <div class="result-stat-value" id="successCount">0</div>
+                            <div class="result-stat-label">Successful</div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="result-stat-value" id="failureCount">0</div>
+                            <div class="result-stat-label">Failed</div>
+                        </div>
+                    </div>
+
+                    <div id="bulkErrorContainer" style="display: none;">
+                        <h4 style="margin: 1rem 0 0.5rem 0; color: var(--error);">Errors</h4>
+                        <div class="error-list" id="bulkErrorList"></div>
+                    </div>
+                </div>
+
+                <!-- Error message -->
+                <div id="bulkModalError" style="display: none; color: var(--error); padding: 1rem; background: var(--surface-hover); border-radius: 4px; margin-bottom: 1rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <div class="bulk-actions">
+                    <button class="btn-secondary" onclick="closeBulkFillModal()">Cancel</button>
+                    <button class="btn-secondary" id="downloadSummaryBtn" onclick="downloadBulkSummary()" style="display: none;">
+                        <i data-lucide="download" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                        Download Summary
+                    </button>
+                    <button class="btn-primary" id="startBulkFillBtn" onclick="startBulkFill()" disabled>
+                        <i data-lucide="play" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
+                        Start Processing
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let selectedFile = null;
         let selectedFileIsPath = false; // Track if selectedFile is a path or File object
         let currentResult = null;
         let isAuthenticated = false;
         let currentTheme = localStorage.getItem('selectedTheme') || 'brutalist';
+        let currentFormFields = null;
+        let currentModalFile = null;
 
         // Toggle between main app and settings
         function toggleSettings() {
@@ -1336,7 +2285,15 @@
                 }
                 
                 const action = card.dataset.action;
-                await processFile(action);
+                if (action === 'fill') {
+                    await openFormFillModal();
+                } else if (action === 'bulk-fill') {
+                    await openBulkFillModal();
+                } else if (action === 'profiles') {
+                    await openProfileModal();
+                } else {
+                    await processFile(action);
+                }
             });
         });
 
@@ -1365,46 +2322,9 @@
                 headers = {}; // FormData sets its own headers
             }
             
+            // Form filling is now handled by the modal - this shouldn't be reached
             if (action === 'fill') {
-                const dataInput = prompt('Enter data to fill in JSON format, or press OK for sample data:\n\nExample:\n{\n  "name": "John Doe",\n  "address": "123 Main St"\n}');
-                
-                let fillData;
-                if (dataInput && dataInput.trim()) {
-                    try {
-                        fillData = JSON.parse(dataInput);
-                    } catch (e) {
-                        showError('Invalid JSON format. Using sample data instead.');
-                        fillData = {
-                            name: "John Doe",
-                            business_name: "Doe Enterprises",
-                            address: "123 Main Street",
-                            city: "New York",
-                            state: "NY",
-                            zip: "10001"
-                        };
-                    }
-                } else {
-                    fillData = {
-                        name: "John Doe",
-                        business_name: "Doe Enterprises", 
-                        address: "123 Main Street",
-                        city: "New York",
-                        state: "NY",
-                        zip: "10001",
-                        social_security_number: "123-45-6789"
-                    };
-                }
-                
-                // Add fill data to the request body
-                if (window.electronAPI && selectedFileIsPath) {
-                    // For native mode, add to JSON body
-                    const jsonBody = JSON.parse(body);
-                    jsonBody.fillData = fillData;
-                    body = JSON.stringify(jsonBody);
-                } else {
-                    // For web mode, add to FormData
-                    formData.append('data', JSON.stringify(fillData));
-                }
+                throw new Error('Form filling should use the modal interface');
             }
             
             try {
@@ -1603,6 +2523,19 @@
         // Initialize
         checkAuthStatus();
         
+        // Close modal when clicking outside
+        document.getElementById('formFillModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeFormFillModal();
+            }
+        });
+        
+        document.getElementById('bulkFillModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeBulkFillModal();
+            }
+        });
+
         // Initialize Lucide icons multiple times to ensure they render
         window.addEventListener('load', () => {
             lucide.createIcons();
@@ -1634,10 +2567,31 @@
                 }
             }
             
-            // ESC to close settings and return to main app
+            // ESC to close modals and settings
             if (e.key === 'Escape') {
+                const formModal = document.getElementById('formFillModal');
+                const bulkModal = document.getElementById('bulkFillModal');
+                const profileModal = document.getElementById('profileModal');
+                const saveProfileModal = document.getElementById('saveProfileModal');
+                const createProfileModal = document.getElementById('createProfileModal');
                 const settingsView = document.getElementById('settingsView');
-                if (settingsView.style.display === 'block') {
+                
+                if (formModal.classList.contains('show')) {
+                    e.preventDefault();
+                    closeFormFillModal();
+                } else if (bulkModal.classList.contains('show')) {
+                    e.preventDefault();
+                    closeBulkFillModal();
+                } else if (profileModal.classList.contains('show')) {
+                    e.preventDefault();
+                    closeProfileModal();
+                } else if (saveProfileModal.classList.contains('show')) {
+                    e.preventDefault();
+                    closeSaveProfileModal();
+                } else if (createProfileModal.classList.contains('show')) {
+                    e.preventDefault();
+                    closeCreateProfileModal();
+                } else if (settingsView.style.display === 'block') {
                     e.preventDefault();
                     toggleSettings();
                 }
@@ -1653,6 +2607,345 @@
             }
         });
         
+        // Form Fill Modal Functions
+        async function openFormFillModal() {
+            if (!selectedFile) {
+                showError('Please select a PDF file first');
+                return;
+            }
+
+            currentModalFile = selectedFile;
+            const modal = document.getElementById('formFillModal');
+            const loading = document.getElementById('modalLoading');
+            const fieldsContainer = document.getElementById('formFieldsContainer');
+            const modalError = document.getElementById('modalError');
+            const fillBtn = document.getElementById('fillFormBtn');
+
+            // Reset modal state
+            loading.style.display = 'block';
+            fieldsContainer.style.display = 'none';
+            modalError.style.display = 'none';
+            document.getElementById('passwordSection').style.display = 'none';
+            fillBtn.disabled = true;
+
+            // Show modal
+            modal.classList.add('show');
+            lucide.createIcons();
+
+            try {
+                await loadFormFields();
+            } catch (error) {
+                console.error('Failed to load form fields:', error);
+                showModalError(error.message);
+            }
+        }
+
+        async function loadFormFields(password = null) {
+            const loading = document.getElementById('modalLoading');
+            const fieldsContainer = document.getElementById('formFieldsContainer');
+            const modalError = document.getElementById('modalError');
+            const fillBtn = document.getElementById('fillFormBtn');
+
+            loading.style.display = 'block';
+            modalError.style.display = 'none';
+
+            try {
+                let endpoint, body, headers;
+
+                if (window.electronAPI && selectedFileIsPath) {
+                    // Native file path mode
+                    endpoint = '/api/read-fields-local';
+                    headers = { 'Content-Type': 'application/json' };
+                    body = JSON.stringify({ 
+                        filePath: currentModalFile,
+                        password: password 
+                    });
+                } else {
+                    // Web upload mode
+                    endpoint = '/api/read-fields';
+                    const formData = new FormData();
+                    formData.append('pdf', currentModalFile);
+                    if (password) {
+                        formData.append('password', password);
+                    }
+                    body = formData;
+                    headers = {};
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: body
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    if (response.status === 404) {
+                        throw new Error('Form field reading endpoint not available. Please ensure your server supports the /api/read-fields-local or /api/read-fields endpoints.');
+                    }
+                    throw new Error(`Failed to read form fields: ${errorText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.requiresPassword) {
+                    loading.style.display = 'none';
+                    document.getElementById('passwordSection').style.display = 'block';
+                    return;
+                }
+
+                currentFormFields = data.fields || [];
+                renderFormFields(currentFormFields);
+                
+                loading.style.display = 'none';
+                fieldsContainer.style.display = 'block';
+                profileSection.style.display = 'block';
+                fillBtn.disabled = false;
+                
+                // Refresh icons
+                setTimeout(() => lucide.createIcons(), 100);
+
+            } catch (error) {
+                loading.style.display = 'none';
+                showModalError(error.message);
+            }
+        }
+
+        function renderFormFields(fields) {
+            const container = document.getElementById('formFields');
+            container.innerHTML = '';
+
+            if (!fields || fields.length === 0) {
+                container.innerHTML = '<p style="text-align: center; opacity: 0.7;">No form fields found in this PDF.</p>';
+                return;
+            }
+
+            fields.forEach((field, index) => {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'form-field';
+
+                const label = document.createElement('label');
+                label.htmlFor = `field_${index}`;
+                label.innerHTML = `
+                    ${field.name || `Field ${index + 1}`}
+                    <span class="field-type">${field.type || 'text'}</span>
+                `;
+
+                let input;
+                switch (field.type) {
+                    case 'checkbox':
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'checkbox-wrapper';
+                        input = document.createElement('input');
+                        input.type = 'checkbox';
+                        input.id = `field_${index}`;
+                        input.checked = field.value === 'true' || field.value === true;
+                        const checkboxLabel = document.createElement('label');
+                        checkboxLabel.htmlFor = `field_${index}`;
+                        checkboxLabel.textContent = field.name || `Field ${index + 1}`;
+                        wrapper.appendChild(input);
+                        wrapper.appendChild(checkboxLabel);
+                        fieldDiv.innerHTML = '';
+                        fieldDiv.appendChild(wrapper);
+                        break;
+                    
+                    case 'select':
+                    case 'dropdown':
+                        input = document.createElement('select');
+                        input.id = `field_${index}`;
+                        
+                        // Add empty option
+                        const emptyOption = document.createElement('option');
+                        emptyOption.value = '';
+                        emptyOption.textContent = 'Choose an option...';
+                        input.appendChild(emptyOption);
+                        
+                        // Add field options if available
+                        if (field.options && Array.isArray(field.options)) {
+                            field.options.forEach(option => {
+                                const optionEl = document.createElement('option');
+                                optionEl.value = option;
+                                optionEl.textContent = option;
+                                optionEl.selected = option === field.value;
+                                input.appendChild(optionEl);
+                            });
+                        }
+                        break;
+                    
+                    case 'textarea':
+                    case 'multiline':
+                        input = document.createElement('textarea');
+                        input.id = `field_${index}`;
+                        input.rows = 3;
+                        input.value = field.value || '';
+                        break;
+                    
+                    default:
+                        input = document.createElement('input');
+                        input.type = 'text';
+                        input.id = `field_${index}`;
+                        input.value = field.value || '';
+                        input.placeholder = `Enter ${field.name || 'value'}`;
+                        break;
+                }
+
+                if (field.type !== 'checkbox') {
+                    fieldDiv.appendChild(label);
+                    fieldDiv.appendChild(input);
+                }
+                
+                container.appendChild(fieldDiv);
+            });
+        }
+
+        async function fillAndSavePDF() {
+            const fillBtn = document.getElementById('fillFormBtn');
+            const modalError = document.getElementById('modalError');
+            
+            fillBtn.disabled = true;
+            fillBtn.innerHTML = '<i data-lucide="loader-2" style="width: 16px; height: 16px; margin-right: 0.5rem; animation: spin 1s linear infinite;"></i>Filling PDF...';
+            modalError.style.display = 'none';
+
+            try {
+                // Collect form data
+                const fillData = {};
+                currentFormFields.forEach((field, index) => {
+                    const input = document.getElementById(`field_${index}`);
+                    if (input) {
+                        let value;
+                        if (input.type === 'checkbox') {
+                            value = input.checked;
+                        } else {
+                            value = input.value;
+                        }
+                        
+                        // Only include non-empty values
+                        if (value !== '' && value !== null && value !== undefined) {
+                            fillData[field.name || `field_${index}`] = value;
+                        }
+                    }
+                });
+
+                // Get password if provided
+                const passwordInput = document.getElementById('pdfPassword');
+                const password = passwordInput ? passwordInput.value : null;
+
+                let endpoint, body, headers;
+                
+                if (window.electronAPI && selectedFileIsPath) {
+                    // Native mode - ask where to save first
+                    const saveResult = await window.electronAPI.savePDF('filled-form.pdf');
+                    if (!saveResult.success) {
+                        throw new Error('Save cancelled');
+                    }
+
+                    endpoint = '/api/fill-pdf-local';
+                    headers = { 'Content-Type': 'application/json' };
+                    body = JSON.stringify({ 
+                        filePath: currentModalFile,
+                        fillData: fillData,
+                        outputPath: saveResult.filePath,
+                        password: password
+                    });
+                } else {
+                    // Web mode
+                    endpoint = '/api/fill-pdf';
+                    const formData = new FormData();
+                    formData.append('pdf', currentModalFile);
+                    formData.append('data', JSON.stringify(fillData));
+                    if (password) {
+                        formData.append('password', password);
+                    }
+                    body = formData;
+                    headers = {};
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: body
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    if (response.status === 404) {
+                        throw new Error('PDF filling endpoint not available. Please ensure your server supports the /api/fill-pdf-local or /api/fill-pdf endpoints.');
+                    }
+                    throw new Error(`Failed to fill PDF: ${errorText}`);
+                }
+
+                if (window.electronAPI && selectedFileIsPath) {
+                    // Native mode - show success message
+                    const result = await response.json();
+                    showResults({ message: `PDF filled and saved successfully!`, filePath: result.outputPath });
+                } else {
+                    // Web mode - download the file
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `filled-${currentModalFile.name}`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    showResults({ message: 'PDF filled and downloaded successfully!' });
+                }
+
+                closeFormFillModal();
+
+            } catch (error) {
+                showModalError(error.message);
+                fillBtn.disabled = false;
+                fillBtn.innerHTML = '<i data-lucide="download" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>Fill & Save PDF';
+                lucide.createIcons();
+            }
+        }
+
+        function closeFormFillModal() {
+            const modal = document.getElementById('formFillModal');
+            modal.classList.remove('show');
+            currentFormFields = null;
+            currentModalFile = null;
+            
+            // Reset form
+            document.getElementById('formFields').innerHTML = '';
+            const passwordInput = document.getElementById('pdfPassword');
+            if (passwordInput) {
+                passwordInput.value = '';
+            }
+            
+            // Reset button
+            const fillBtn = document.getElementById('fillFormBtn');
+            fillBtn.disabled = true;
+            fillBtn.innerHTML = '<i data-lucide="download" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>Fill & Save PDF';
+            
+            // Refresh icons
+            setTimeout(() => lucide.createIcons(), 100);
+        }
+
+        function showModalError(message) {
+            const modalError = document.getElementById('modalError');
+            modalError.textContent = message;
+            modalError.style.display = 'block';
+        }
+
+        // Handle password submission
+        function submitPassword() {
+            const passwordInput = document.getElementById('pdfPassword');
+            const password = passwordInput.value.trim();
+            if (password) {
+                loadFormFields(password);
+            } else {
+                showModalError('Please enter a password');
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.target.id === 'pdfPassword') {
+                e.preventDefault();
+                submitPassword();
+            }
+        });
+
         // Listen for settings event from Electron tray
         if (window.electronAPI) {
             window.electronAPI.onOpenSettings(() => {
@@ -1661,6 +2954,842 @@
                 }
             });
         }
+
+        // Bulk Fill Modal Functions
+        let bulkTemplatePath = null;
+        let bulkCsvPath = null;
+        let bulkOutputPath = null;
+        let bulkProcessingResults = null;
+
+        async function openBulkFillModal() {
+            const modal = document.getElementById('bulkFillModal');
+            const setupSection = document.getElementById('bulkSetupSection');
+            const processingSection = document.getElementById('bulkProcessingSection');
+            const modalError = document.getElementById('bulkModalError');
+            const startBtn = document.getElementById('startBulkFillBtn');
+
+            // Reset modal state
+            setupSection.style.display = 'block';
+            processingSection.style.display = 'none';
+            modalError.style.display = 'none';
+            document.getElementById('bulkPasswordSection').style.display = 'none';
+            document.getElementById('downloadSummaryBtn').style.display = 'none';
+            startBtn.disabled = true;
+            
+            // Reset file selections
+            bulkTemplatePath = null;
+            bulkCsvPath = null;
+            bulkOutputPath = null;
+            bulkProcessingResults = null;
+            
+            document.getElementById('templatePDF').value = '';
+            document.getElementById('csvFile').value = '';
+            document.getElementById('outputDirectory').value = '';
+            document.getElementById('bulkPdfPassword').value = '';
+
+            // Show modal
+            modal.classList.add('show');
+            lucide.createIcons();
+        }
+
+        async function selectTemplatePDF() {
+            if (window.electronAPI) {
+                const result = await window.electronAPI.selectPDF();
+                if (result.success) {
+                    bulkTemplatePath = result.filePath;
+                    document.getElementById('templatePDF').value = result.filePath.split('/').pop();
+                    checkBulkFormReady();
+                }
+            } else {
+                showBulkModalError('File selection is only available in the desktop app');
+            }
+        }
+
+        async function selectCSVFile() {
+            if (window.electronAPI) {
+                const result = await window.electronAPI.selectFile([
+                    { name: 'CSV Files', extensions: ['csv'] },
+                    { name: 'All Files', extensions: ['*'] }
+                ]);
+                if (result.success) {
+                    bulkCsvPath = result.filePath;
+                    document.getElementById('csvFile').value = result.filePath.split('/').pop();
+                    checkBulkFormReady();
+                }
+            } else {
+                showBulkModalError('File selection is only available in the desktop app');
+            }
+        }
+
+        async function selectOutputDirectory() {
+            if (window.electronAPI) {
+                const result = await window.electronAPI.selectDirectory();
+                if (result.success) {
+                    bulkOutputPath = result.filePath;
+                    document.getElementById('outputDirectory').value = result.filePath;
+                    checkBulkFormReady();
+                }
+            } else {
+                showBulkModalError('Directory selection is only available in the desktop app');
+            }
+        }
+
+        function checkBulkFormReady() {
+            const startBtn = document.getElementById('startBulkFillBtn');
+            const namingPattern = document.getElementById('namingPattern').value.trim();
+            
+            if (bulkTemplatePath && bulkCsvPath && bulkOutputPath && namingPattern) {
+                startBtn.disabled = false;
+            } else {
+                startBtn.disabled = true;
+            }
+        }
+
+        // Add event listener for naming pattern input
+        document.getElementById('namingPattern').addEventListener('input', checkBulkFormReady);
+
+        async function startBulkFill() {
+            const setupSection = document.getElementById('bulkSetupSection');
+            const processingSection = document.getElementById('bulkProcessingSection');
+            const modalError = document.getElementById('bulkModalError');
+            const startBtn = document.getElementById('startBulkFillBtn');
+            
+            // Validate inputs
+            if (!bulkTemplatePath || !bulkCsvPath || !bulkOutputPath) {
+                showBulkModalError('Please select all required files and directories');
+                return;
+            }
+            
+            const namingPattern = document.getElementById('namingPattern').value.trim();
+            if (!namingPattern) {
+                showBulkModalError('Please enter a file naming pattern');
+                return;
+            }
+
+            // Hide setup, show processing
+            setupSection.style.display = 'none';
+            processingSection.style.display = 'block';
+            modalError.style.display = 'none';
+            startBtn.disabled = true;
+            
+            // Reset progress
+            updateBulkProgress(0, 0, 'Preparing to process files...');
+            document.getElementById('bulkResultsSummary').style.display = 'none';
+            document.getElementById('bulkErrorContainer').style.display = 'none';
+
+            try {
+                // Get password if provided
+                const password = document.getElementById('bulkPdfPassword').value || null;
+
+                const requestBody = {
+                    templatePath: bulkTemplatePath,
+                    csvPath: bulkCsvPath,
+                    outputPath: bulkOutputPath,
+                    namingPattern: namingPattern,
+                    password: password
+                };
+
+                const response = await fetch('/api/bulk-fill-local', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+                }
+
+                // Handle streaming response
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || ''; // Keep incomplete line in buffer
+                    
+                    for (const line of lines) {
+                        if (line.trim()) {
+                            try {
+                                const update = JSON.parse(line);
+                                handleBulkUpdate(update);
+                            } catch (e) {
+                                console.warn('Failed to parse update:', line);
+                            }
+                        }
+                    }
+                }
+                
+                // Process any remaining buffer
+                if (buffer.trim()) {
+                    try {
+                        const update = JSON.parse(buffer);
+                        handleBulkUpdate(update);
+                    } catch (e) {
+                        console.warn('Failed to parse final update:', buffer);
+                    }
+                }
+
+            } catch (error) {
+                console.error('Bulk fill error:', error);
+                setupSection.style.display = 'block';
+                processingSection.style.display = 'none';
+                showBulkModalError(error.message);
+                startBtn.disabled = false;
+            }
+        }
+
+        function handleBulkUpdate(update) {
+            if (update.type === 'progress') {
+                updateBulkProgress(update.completed, update.total, update.message);
+            } else if (update.type === 'complete') {
+                bulkProcessingResults = update.results;
+                showBulkResults(update.results);
+                document.getElementById('downloadSummaryBtn').style.display = 'block';
+            } else if (update.type === 'error') {
+                showBulkModalError(update.message);
+            } else if (update.type === 'requiresPassword') {
+                document.getElementById('bulkPasswordSection').style.display = 'block';
+                document.getElementById('bulkSetupSection').style.display = 'block';
+                document.getElementById('bulkProcessingSection').style.display = 'none';
+                document.getElementById('startBulkFillBtn').disabled = false;
+                showBulkModalError('This PDF requires a password. Please enter it and try again.');
+            }
+        }
+
+        function updateBulkProgress(completed, total, message) {
+            const progressFill = document.getElementById('bulkProgressFill');
+            const progressText = document.getElementById('bulkProgressText');
+            const progressCount = document.getElementById('bulkProgressCount');
+            const progressPercent = document.getElementById('bulkProgressPercent');
+            
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            progressFill.style.width = `${percentage}%`;
+            progressText.textContent = message;
+            progressCount.textContent = `${completed} / ${total}`;
+            progressPercent.textContent = `${percentage}%`;
+        }
+
+        function showBulkResults(results) {
+            const summaryContainer = document.getElementById('bulkResultsSummary');
+            const errorContainer = document.getElementById('bulkErrorContainer');
+            const errorList = document.getElementById('bulkErrorList');
+            const successCount = document.getElementById('successCount');
+            const failureCount = document.getElementById('failureCount');
+            
+            // Update summary stats
+            const successful = results.filter(r => r.success).length;
+            const failed = results.filter(r => !r.success).length;
+            
+            successCount.textContent = successful;
+            failureCount.textContent = failed;
+            summaryContainer.style.display = 'grid';
+            
+            // Show errors if any
+            const errors = results.filter(r => !r.success);
+            if (errors.length > 0) {
+                errorContainer.style.display = 'block';
+                errorList.innerHTML = '';
+                
+                errors.forEach(error => {
+                    const errorItem = document.createElement('div');
+                    errorItem.className = 'error-item';
+                    errorItem.innerHTML = `
+                        <div class="error-row">Row ${error.row}</div>
+                        <div class="error-message">${error.error}</div>
+                    `;
+                    errorList.appendChild(errorItem);
+                });
+            } else {
+                errorContainer.style.display = 'none';
+            }
+            
+            // Update final progress message
+            updateBulkProgress(results.length, results.length, 
+                `Complete! ${successful} successful, ${failed} failed`);
+        }
+
+        function downloadBulkSummary() {
+            if (!bulkProcessingResults) return;
+            
+            const summary = {
+                timestamp: new Date().toISOString(),
+                template: bulkTemplatePath,
+                csvFile: bulkCsvPath,
+                outputDirectory: bulkOutputPath,
+                totalRows: bulkProcessingResults.length,
+                successful: bulkProcessingResults.filter(r => r.success).length,
+                failed: bulkProcessingResults.filter(r => !r.success).length,
+                results: bulkProcessingResults
+            };
+            
+            const blob = new Blob([JSON.stringify(summary, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bulk-fill-summary-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function closeBulkFillModal() {
+            const modal = document.getElementById('bulkFillModal');
+            modal.classList.remove('show');
+            
+            // Reset state
+            bulkTemplatePath = null;
+            bulkCsvPath = null;
+            bulkOutputPath = null;
+            bulkProcessingResults = null;
+            
+            // Reset form
+            document.getElementById('templatePDF').value = '';
+            document.getElementById('csvFile').value = '';
+            document.getElementById('outputDirectory').value = '';
+            document.getElementById('bulkPdfPassword').value = '';
+            document.getElementById('namingPattern').value = 'filled_{row}_{timestamp}';
+            
+            // Reset sections
+            document.getElementById('bulkSetupSection').style.display = 'block';
+            document.getElementById('bulkProcessingSection').style.display = 'none';
+            document.getElementById('bulkPasswordSection').style.display = 'none';
+            document.getElementById('bulkModalError').style.display = 'none';
+            document.getElementById('downloadSummaryBtn').style.display = 'none';
+            
+            // Reset button
+            const startBtn = document.getElementById('startBulkFillBtn');
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<i data-lucide="play" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>Start Processing';
+            
+            // Refresh icons
+            setTimeout(() => lucide.createIcons(), 100);
+        }
+
+        function showBulkModalError(message) {
+            const modalError = document.getElementById('bulkModalError');
+            modalError.textContent = message;
+            modalError.style.display = 'block';
+        }
+
+        // Profile Management Functions
+        let currentProfiles = [];
+        let currentEditProfileId = null;
+
+        async function openProfileModal() {
+            const modal = document.getElementById('profileModal');
+            modal.classList.add('show');
+            await loadProfiles();
+            lucide.createIcons();
+        }
+
+        function closeProfileModal() {
+            const modal = document.getElementById('profileModal');
+            modal.classList.remove('show');
+        }
+
+        async function loadProfiles() {
+            const profileList = document.getElementById('profileList');
+            
+            try {
+                const response = await fetch('/api/profiles');
+                if (!response.ok) throw new Error('Failed to load profiles');
+                
+                currentProfiles = await response.json();
+                renderProfileList();
+            } catch (error) {
+                console.error('Error loading profiles:', error);
+                profileList.innerHTML = `
+                    <div class="empty-profiles">
+                        <i data-lucide="alert-circle"></i>
+                        <p>Error loading profiles</p>
+                        <small>${error.message}</small>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+        }
+
+        function renderProfileList() {
+            const profileList = document.getElementById('profileList');
+            
+            if (currentProfiles.length === 0) {
+                profileList.innerHTML = `
+                    <div class="empty-profiles">
+                        <i data-lucide="user-plus"></i>
+                        <p>No profiles saved yet</p>
+                        <small>Create your first profile to save form data for reuse</small>
+                    </div>
+                `;
+            } else {
+                profileList.innerHTML = currentProfiles.map(profile => `
+                    <div class="profile-item ${profile.isDefault ? 'default' : ''}">
+                        <div class="profile-header">
+                            <div class="profile-info">
+                                <div class="profile-name">
+                                    ${escapeHtml(profile.name)}
+                                    ${profile.isDefault ? '<span class="default-badge">Default</span>' : ''}
+                                </div>
+                                ${profile.description ? `<div class="profile-description">${escapeHtml(profile.description)}</div>` : ''}
+                                ${profile.tags && profile.tags.length > 0 ? `
+                                    <div class="profile-tags">
+                                        ${profile.tags.map(tag => `<span class="profile-tag">${escapeHtml(tag)}</span>`).join('')}
+                                    </div>
+                                ` : ''}
+                                <div class="profile-meta">
+                                    <span><i data-lucide="calendar" style="width: 12px; height: 12px; margin-right: 0.25rem;"></i>${new Date(profile.createdAt).toLocaleDateString()}</span>
+                                    <span><i data-lucide="edit-3" style="width: 12px; height: 12px; margin-right: 0.25rem;"></i>${Object.keys(profile.data).length} fields</span>
+                                </div>
+                                <div class="profile-fields-preview">
+                                    ${Object.keys(profile.data).slice(0, 3).map(key => `${key}: ${escapeHtml(String(profile.data[key]).substring(0, 30))}${String(profile.data[key]).length > 30 ? '...' : ''}`).join(', ')}
+                                    ${Object.keys(profile.data).length > 3 ? `... and ${Object.keys(profile.data).length - 3} more` : ''}
+                                </div>
+                            </div>
+                            <div class="profile-actions">
+                                <button class="icon-btn" onclick="editProfile('${profile.id}')" title="Edit">
+                                    <i data-lucide="edit-2"></i>
+                                </button>
+                                <button class="icon-btn" onclick="toggleDefaultProfile('${profile.id}')" title="${profile.isDefault ? 'Remove default' : 'Set as default'}">
+                                    <i data-lucide="${profile.isDefault ? 'star' : 'star'}"></i>
+                                </button>
+                                <button class="icon-btn" onclick="deleteProfile('${profile.id}')" title="Delete" style="color: var(--error);">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            lucide.createIcons();
+        }
+
+        async function loadProfilesForSelect() {
+            const profileSelect = document.getElementById('profileSelect');
+            
+            try {
+                const response = await fetch('/api/profiles');
+                if (!response.ok) throw new Error('Failed to load profiles');
+                
+                const profiles = await response.json();
+                profileSelect.innerHTML = '<option value="">Select a profile...</option>' +
+                    profiles.map(profile => `<option value="${profile.id}">${escapeHtml(profile.name)}</option>`).join('');
+            } catch (error) {
+                console.error('Error loading profiles for select:', error);
+                profileSelect.innerHTML = '<option value="">Error loading profiles</option>';
+            }
+        }
+
+        async function loadSelectedProfile() {
+            const profileSelect = document.getElementById('profileSelect');
+            const selectedId = profileSelect.value;
+            
+            if (!selectedId) return;
+            
+            try {
+                const response = await fetch(`/api/profiles/${selectedId}`);
+                if (!response.ok) throw new Error('Failed to load profile');
+                
+                const profile = await response.json();
+                
+                // Fill form fields with profile data
+                Object.entries(profile.data).forEach(([fieldName, value]) => {
+                    const field = document.querySelector(`[name="${fieldName}"]`);
+                    if (field) {
+                        field.value = value;
+                    }
+                });
+                
+                // Show success message briefly
+                const loadBtn = document.getElementById('loadProfileBtn');
+                const originalText = loadBtn.innerHTML;
+                loadBtn.innerHTML = '<i data-lucide="check" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>Loaded';
+                loadBtn.disabled = true;
+                
+                setTimeout(() => {
+                    loadBtn.innerHTML = originalText;
+                    loadBtn.disabled = false;
+                    lucide.createIcons();
+                }, 1500);
+                
+                lucide.createIcons();
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                showModalError(error.message);
+            }
+        }
+
+        function openSaveProfileModal() {
+            // Get current form data
+            const formData = {};
+            const formFields = document.querySelectorAll('#formFields input, #formFields textarea, #formFields select');
+            
+            formFields.forEach(field => {
+                if (field.value.trim()) {
+                    formData[field.name] = field.value.trim();
+                }
+            });
+            
+            if (Object.keys(formData).length === 0) {
+                showModalError('Please fill in some form fields before saving as a profile.');
+                return;
+            }
+            
+            currentProfileData = formData;
+            
+            const modal = document.getElementById('saveProfileModal');
+            modal.classList.add('show');
+            
+            // Clear form
+            document.getElementById('profileName').value = '';
+            document.getElementById('profileDescription').value = '';
+            document.getElementById('profileTags').value = '';
+            document.getElementById('setAsDefault').checked = false;
+            
+            lucide.createIcons();
+        }
+
+        function closeSaveProfileModal() {
+            const modal = document.getElementById('saveProfileModal');
+            modal.classList.remove('show');
+            currentProfileData = null;
+        }
+
+        async function saveProfile() {
+            const name = document.getElementById('profileName').value.trim();
+            const description = document.getElementById('profileDescription').value.trim();
+            const tags = document.getElementById('profileTags').value.split(',').map(t => t.trim()).filter(t => t);
+            const isDefault = document.getElementById('setAsDefault').checked;
+            const errorDiv = document.getElementById('saveProfileError');
+            
+            errorDiv.style.display = 'none';
+            
+            if (!name) {
+                errorDiv.textContent = 'Profile name is required';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            const saveBtn = document.getElementById('saveProfileBtn');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i data-lucide="loader-2" style="width: 16px; height: 16px; margin-right: 0.5rem; animation: spin 1s linear infinite;"></i>Saving...';
+            
+            try {
+                const response = await fetch('/api/profiles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        description,
+                        tags,
+                        isDefault,
+                        data: currentProfileData
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to save profile');
+                }
+                
+                closeSaveProfileModal();
+                await loadProfilesForSelect(); // Refresh the select dropdown
+                
+                // Show success message
+                const saveAsBtn = document.getElementById('saveAsProfileBtn');
+                const originalSaveAsText = saveAsBtn.innerHTML;
+                saveAsBtn.innerHTML = '<i data-lucide="check" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>Saved';
+                
+                setTimeout(() => {
+                    saveAsBtn.innerHTML = originalSaveAsText;
+                    lucide.createIcons();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error saving profile:', error);
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalText;
+                lucide.createIcons();
+            }
+        }
+
+        function openCreateProfileModal() {
+            currentEditProfileId = null;
+            const modal = document.getElementById('createProfileModal');
+            const title = document.getElementById('createProfileTitle');
+            const btnText = document.getElementById('createProfileBtnText');
+            
+            title.innerHTML = '<i data-lucide="plus" style="width: 20px; height: 20px;"></i>Create New Profile';
+            btnText.textContent = 'Create Profile';
+            
+            // Clear form
+            document.getElementById('createProfileName').value = '';
+            document.getElementById('createProfileDescription').value = '';
+            document.getElementById('createProfileTags').value = '';
+            document.getElementById('createSetAsDefault').checked = false;
+            
+            // Render common fields template
+            renderCommonFields();
+            
+            modal.classList.add('show');
+            lucide.createIcons();
+        }
+
+        function closeCreateProfileModal() {
+            const modal = document.getElementById('createProfileModal');
+            modal.classList.remove('show');
+            currentEditProfileId = null;
+        }
+
+        function renderCommonFields() {
+            const fieldsContainer = document.getElementById('createProfileFields');
+            
+            const commonFields = [
+                { name: 'firstName', label: 'First Name', type: 'text' },
+                { name: 'lastName', label: 'Last Name', type: 'text' },
+                { name: 'email', label: 'Email', type: 'email' },
+                { name: 'phone', label: 'Phone', type: 'tel' },
+                { name: 'address', label: 'Address', type: 'text' },
+                { name: 'city', label: 'City', type: 'text' },
+                { name: 'state', label: 'State', type: 'text' },
+                { name: 'zip', label: 'ZIP Code', type: 'text' },
+                { name: 'country', label: 'Country', type: 'text' },
+                { name: 'company', label: 'Company', type: 'text' },
+                { name: 'title', label: 'Job Title', type: 'text' },
+                { name: 'ssn', label: 'SSN', type: 'text' },
+                { name: 'dateOfBirth', label: 'Date of Birth', type: 'date' }
+            ];
+            
+            fieldsContainer.innerHTML = commonFields.map(field => `
+                <div class="profile-field">
+                    <label for="profile_${field.name}">${field.label}</label>
+                    <input type="${field.type}" id="profile_${field.name}" name="${field.name}" placeholder="Enter ${field.label.toLowerCase()}">
+                </div>
+            `).join('');
+        }
+
+        async function createProfile() {
+            const name = document.getElementById('createProfileName').value.trim();
+            const description = document.getElementById('createProfileDescription').value.trim();
+            const tags = document.getElementById('createProfileTags').value.split(',').map(t => t.trim()).filter(t => t);
+            const isDefault = document.getElementById('createSetAsDefault').checked;
+            const errorDiv = document.getElementById('createProfileError');
+            
+            errorDiv.style.display = 'none';
+            
+            if (!name) {
+                errorDiv.textContent = 'Profile name is required';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Collect field data
+            const data = {};
+            const fields = document.querySelectorAll('#createProfileFields input');
+            fields.forEach(field => {
+                if (field.value.trim()) {
+                    data[field.name] = field.value.trim();
+                }
+            });
+            
+            const createBtn = document.getElementById('createProfileBtn');
+            const originalText = createBtn.innerHTML;
+            createBtn.disabled = true;
+            createBtn.innerHTML = '<i data-lucide="loader-2" style="width: 16px; height: 16px; margin-right: 0.5rem; animation: spin 1s linear infinite;"></i>Saving...';
+            
+            try {
+                const method = currentEditProfileId ? 'PUT' : 'POST';
+                const url = currentEditProfileId ? `/api/profiles/${currentEditProfileId}` : '/api/profiles';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, tags, isDefault, data })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to save profile');
+                }
+                
+                closeCreateProfileModal();
+                await loadProfiles(); // Refresh profile list
+                
+            } catch (error) {
+                console.error('Error saving profile:', error);
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                createBtn.disabled = false;
+                createBtn.innerHTML = originalText;
+                lucide.createIcons();
+            }
+        }
+
+        async function editProfile(profileId) {
+            try {
+                const response = await fetch(`/api/profiles/${profileId}`);
+                if (!response.ok) throw new Error('Failed to load profile');
+                
+                const profile = await response.json();
+                currentEditProfileId = profileId;
+                
+                const modal = document.getElementById('createProfileModal');
+                const title = document.getElementById('createProfileTitle');
+                const btnText = document.getElementById('createProfileBtnText');
+                
+                title.innerHTML = '<i data-lucide="edit-2" style="width: 20px; height: 20px;"></i>Edit Profile';
+                btnText.textContent = 'Update Profile';
+                
+                // Fill form with profile data
+                document.getElementById('createProfileName').value = profile.name;
+                document.getElementById('createProfileDescription').value = profile.description || '';
+                document.getElementById('createProfileTags').value = profile.tags ? profile.tags.join(', ') : '';
+                document.getElementById('createSetAsDefault').checked = profile.isDefault;
+                
+                // Render fields and fill with data
+                renderCommonFields();
+                
+                Object.entries(profile.data).forEach(([fieldName, value]) => {
+                    const field = document.querySelector(`#createProfileFields [name="${fieldName}"]`);
+                    if (field) {
+                        field.value = value;
+                    }
+                });
+                
+                modal.classList.add('show');
+                lucide.createIcons();
+                
+            } catch (error) {
+                console.error('Error loading profile for edit:', error);
+                showProfileModalError(error.message);
+            }
+        }
+
+        async function deleteProfile(profileId) {
+            if (!confirm('Are you sure you want to delete this profile? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/profiles/${profileId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to delete profile');
+                }
+                
+                await loadProfiles(); // Refresh profile list
+                
+            } catch (error) {
+                console.error('Error deleting profile:', error);
+                showProfileModalError(error.message);
+            }
+        }
+
+        async function toggleDefaultProfile(profileId) {
+            try {
+                const response = await fetch(`/api/profiles/${profileId}/default`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to update default profile');
+                }
+                
+                await loadProfiles(); // Refresh profile list
+                
+            } catch (error) {
+                console.error('Error updating default profile:', error);
+                showProfileModalError(error.message);
+            }
+        }
+
+        async function exportProfiles() {
+            try {
+                const response = await fetch('/api/profiles/export');
+                if (!response.ok) throw new Error('Failed to export profiles');
+                
+                const profiles = await response.json();
+                const dataStr = JSON.stringify(profiles, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                
+                const url = window.URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `profiles-export-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                
+            } catch (error) {
+                console.error('Error exporting profiles:', error);
+                showProfileModalError(error.message);
+            }
+        }
+
+        function importProfiles() {
+            document.getElementById('profileImportInput').click();
+        }
+
+        async function handleProfileImport(file) {
+            try {
+                const text = await file.text();
+                const profiles = JSON.parse(text);
+                
+                if (!Array.isArray(profiles)) {
+                    throw new Error('Invalid file format: expected an array of profiles');
+                }
+                
+                const response = await fetch('/api/profiles/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profiles })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to import profiles');
+                }
+                
+                const result = await response.json();
+                await loadProfiles(); // Refresh profile list
+                
+                alert(`Successfully imported ${result.imported} profiles. ${result.skipped} duplicates were skipped.`);
+                
+            } catch (error) {
+                console.error('Error importing profiles:', error);
+                showProfileModalError(error.message);
+            }
+        }
+
+        function showProfileModalError(message) {
+            const modalError = document.getElementById('profileModalError');
+            modalError.textContent = message;
+            modalError.style.display = 'block';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Global variable to store current profile data when saving
+        let currentProfileData = null;
     </script>
 </body>
 </html>

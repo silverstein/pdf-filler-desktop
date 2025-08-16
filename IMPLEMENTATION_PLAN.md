@@ -15,34 +15,34 @@ This document outlines the implementation plan for adding actual PDF manipulatio
 **Goal**: Add ability to actually fill and save PDFs
 
 ### 1.1 Add PDF Libraries
-- [ ] Install pdf-lib for form manipulation
-- [ ] Install pdf-parse for better text extraction
-- [ ] Test basic PDF reading/writing in isolation
+- [x] Install pdf-lib for form manipulation
+- [x] Install pdf-parse for better text extraction
+- [x] Test basic PDF reading/writing in isolation
 
 ### 1.2 Create PDF Service Module (`src/services/pdf-service.js`)
-- [ ] Create service class for PDF operations
-- [ ] Implement `readFormFields(pdfPath)` - get all form fields
-- [ ] Implement `fillFormFields(pdfPath, data)` - fill fields with data
-- [ ] Implement `saveFilledPDF(pdfDoc, outputPath)` - save modified PDF
-- [ ] Add password support to all methods
-- [ ] Add error handling for corrupted/invalid PDFs
+- [x] Create service class for PDF operations
+- [x] Implement `readFormFields(pdfPath)` - get all form fields
+- [x] Implement `fillFormFields(pdfPath, data)` - fill fields with data
+- [x] Implement `saveFilledPDF(pdfDoc, outputPath)` - save modified PDF
+- [x] Add password support to all methods
+- [x] Add error handling for corrupted/invalid PDFs
 
 ### 1.3 Update Server Endpoints
-- [ ] Update `/api/fill-local` to actually fill PDFs
-- [ ] Add `/api/read-fields-local` for form field discovery
-- [ ] Add password parameter to all endpoints
-- [ ] Return filled PDF as download or save to specified path
+- [x] Update `/api/fill-local` to actually fill PDFs
+- [x] Add `/api/read-fields-local` for form field discovery
+- [x] Add password parameter to all endpoints
+- [x] Return filled PDF as download or save to specified path
 
 ### 1.4 Update UI for Form Filling
-- [ ] Replace `prompt()` with proper modal dialog
-- [ ] Create form field mapping interface
-- [ ] Add "Fill Form" button that shows field mapping UI
-- [ ] Show preview of fields to be filled
-- [ ] Add password prompt for protected PDFs
-- [ ] Add save location picker
+- [x] Replace `prompt()` with proper modal dialog
+- [x] Create form field mapping interface
+- [x] Add "Fill Form" button that shows field mapping UI
+- [x] Show preview of fields to be filled
+- [x] Add password prompt for protected PDFs
+- [x] Add save location picker
 
 ### 1.5 Testing
-- [ ] Test with W-9 form (key success metric)
+- [x] Test with W-9 form (key success metric)
 - [ ] Test with password-protected PDF
 - [ ] Test with complex multi-page forms
 - [ ] Test with various field types (text, checkbox, dropdown)
@@ -51,23 +51,23 @@ This document outlines the implementation plan for adding actual PDF manipulatio
 **Goal**: Process multiple PDFs from CSV data
 
 ### 2.1 CSV Processing
-- [ ] Create CSV parser service (`src/services/csv-service.js`)
-- [ ] Implement CSV upload endpoint
-- [ ] Map CSV columns to PDF fields
-- [ ] Handle different CSV formats/delimiters
+- [x] Create CSV parser service (`src/services/csv-service.js`)
+- [x] Implement CSV upload endpoint
+- [x] Map CSV columns to PDF fields
+- [x] Handle different CSV formats/delimiters
 
 ### 2.2 Bulk Fill Implementation
-- [ ] Create `/api/bulk-fill` endpoint
-- [ ] Process PDFs in sequence (avoid rate limits)
-- [ ] Generate unique filenames from CSV data
-- [ ] Create progress tracking system
-- [ ] Handle errors gracefully (don't stop entire batch)
+- [x] Create `/api/bulk-fill` endpoint
+- [x] Process PDFs in sequence (avoid rate limits)
+- [x] Generate unique filenames from CSV data
+- [x] Create progress tracking system
+- [x] Handle errors gracefully (don't stop entire batch)
 
 ### 2.3 Bulk UI
-- [ ] Add "Bulk Fill" tab to UI
-- [ ] CSV upload interface
-- [ ] Column mapping interface
-- [ ] Progress bar for batch operations
+- [x] Add "Bulk Fill" tab to UI
+- [x] CSV upload interface
+- [x] Column mapping interface
+- [x] Progress bar for batch operations
 - [ ] Download all as ZIP option
 
 ## Phase 3: Profile System

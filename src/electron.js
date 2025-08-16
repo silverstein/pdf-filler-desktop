@@ -31,6 +31,9 @@ let mcpManager = null;
 const SERVER_PORT = 3456;
 const SERVER_URL = `http://localhost:${SERVER_PORT}`;
 
+// Set the app name for macOS menu bar
+app.setName('PDF Filler');
+
 // Start the Express server
 function startServer() {
   log('Starting Express server...');
