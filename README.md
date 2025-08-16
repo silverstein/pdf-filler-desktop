@@ -38,10 +38,21 @@ cd pdf-filler-desktop
 
 # Install dependencies
 npm install
-
-# Start the app
-npm start
 ```
+
+### Running the App
+
+```bash
+# Start the desktop app (opens window + system tray)
+npm start
+
+# Alternative commands:
+npm run electron   # Same as npm start
+npm run server     # Server only (no window)
+npm run dev        # Development mode with auto-restart
+```
+
+**Note**: On first run, you'll need to authenticate with Google OAuth when prompted.
 
 The app will:
 - Install a local Gemini CLI instance automatically
@@ -59,11 +70,12 @@ No API keys needed - just your Google account!
 
 ## 🎮 Usage
 
-### Desktop Application (Recommended)
+### Finding the App
 
-```bash
-npm start
-```
+After running `npm start`:
+1. **Check your menu bar** (Mac) or system tray (Windows/Linux) for the 📄 PDF icon
+2. **Click the icon** and select "Open PDF Filler" if the window doesn't appear
+3. **Window opens** with the PDF Filler interface
 
 The desktop app provides:
 - 📁 **Native file selection** - Click or drag to select PDFs from anywhere
