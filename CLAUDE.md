@@ -1,7 +1,9 @@
-# CLAUDE.md - PDF Filler
+# CLAUDE.md - PDF Filler Desktop
 
 ## Project Overview
-PDF Filler is a desktop application that provides **completely free** PDF processing using Google's Gemini CLI free tier. Users authenticate with their Google account (OAuth) and get access to AI-powered PDF analysis, form filling, and data extraction - all without API keys or costs.
+PDF Filler Desktop is a native Electron application that provides **completely free** PDF processing using Google's Gemini AI. Users authenticate with their Google account (OAuth) and get access to AI-powered PDF analysis, form filling, and data extraction - all without API keys or costs.
+
+**GitHub Repository**: https://github.com/silverstein/pdf-filler-desktop
 
 ## Core Concept
 - **NO API keys required** - Uses OAuth authentication only
@@ -18,7 +20,8 @@ PDF Filler is a desktop application that provides **completely free** PDF proces
    - OAuth flow handling
 
 2. **Express Server** (`src/server.js`)
-   - PDF upload/processing endpoints
+   - PDF processing endpoints (both file paths and uploads)
+   - Native file path support via `/api/analyze-local`, `/api/extract-local`
    - Runs on localhost:3456
 
 3. **Gemini Simple Bridge** (`src/gemini-simple.js`)
@@ -41,10 +44,11 @@ PDF Filler is a desktop application that provides **completely free** PDF proces
 5. App detects auth completion and switches to main UI
 
 ### PDF Processing
-1. User uploads PDF to `uploads/` directory
-2. App passes file path to Gemini: `"Analyze the PDF at: uploads/filename.pdf"`
-3. Gemini CLI reads file directly and returns JSON response
-4. App parses response and displays results
+1. User selects PDF using native file dialog (no upload needed)
+2. App passes absolute file path to Gemini: `"Analyze the PDF at: /full/path/to/file.pdf"`
+3. Gemini CLI uses MCP filesystem server to access files anywhere on system
+4. Gemini analyzes PDF and returns structured JSON
+5. App displays results in themed UI
 
 ## Important Notes
 
@@ -52,6 +56,8 @@ PDF Filler is a desktop application that provides **completely free** PDF proces
 - Installed at `gemini-cli-local/`
 - Uses `HOME` environment variable override to isolate config
 - Each user's credentials stay on their machine only
+- MCP filesystem server configured at `gemini-cli-local/.gemini/mcp_servers.json`
+- Can access files anywhere on system via MCP
 
 ### Rate Limiting
 - 50 requests/minute (with buffer from 60 limit)
@@ -63,22 +69,30 @@ PDF Filler is a desktop application that provides **completely free** PDF proces
 2. **Long processing times**: Increased timeout to 2 minutes, added visual timer
 3. **Workspace accounts**: Require `GOOGLE_CLOUD_PROJECT` env var (set to dummy value)
 
-## Remaining TODOs
+## Current Status
 
-### High Priority
-- [ ] **Password-protected PDF support**
-  - Currently no handling for encrypted PDFs
-  - Need to prompt for password and pass to pdf-lib
-  
-- [ ] **Better Fill Form UI**
-  - Replace `prompt()` with proper modal dialog
-  - Show detected fields and let user map data
-  - Save/load fill templates
+### ✅ Completed
+- Native file selection (no uploads needed)
+- MCP filesystem integration for broad file access
+- Multiple UI themes (Dark, Light, Ocean, Forest, etc.)
+- Recent files tracking
+- System tray integration
+- Google OAuth authentication
+- PDF analysis and data extraction
 
-- [ ] **Bulk Processing**
-  - Implement CSV upload for batch operations
-  - Progress tracking for multiple files
-  - Export results to spreadsheet
+### 🚧 In Progress
+- Adding pdf-lib for actual form filling
+- Implementing write-back functionality
+
+### ❌ Remaining TODOs
+
+See [FEATURES.md](FEATURES.md) for complete feature parity roadmap with pdf-filler-simple.
+
+**High Priority:**
+- [ ] **Actual Form Filling** - Write data back to PDFs using pdf-lib
+- [ ] **Password Support** - Handle encrypted PDFs
+- [ ] **Better Fill Form UI** - Modal dialog instead of prompt()
+- [ ] **Bulk CSV Processing** - Fill multiple PDFs from spreadsheet
 
 ### Medium Priority
 - [ ] **Profile System**
@@ -263,11 +277,20 @@ const jsonString = jsonMatch[0]
 - Each user's auth is isolated to their machine
 - No data sent to external servers (except Gemini AI calls)
 
-## Future Vision
-This proves that AI-powered tools can be completely free for end users. The same approach could work for:
-- Document summarization
-- Contract analysis  
-- Receipt/invoice processing
-- Any document-based AI task
+## Integration Plans
 
-The key insight: **Gemini CLI can read files directly when given the path** - no need for complex extraction or base64 encoding!
+This project will eventually merge with [pdf-filler-simple](https://github.com/silverstein/pdf-filler-simple) to create a unified PDF Filler ecosystem:
+
+- **Desktop App** (this project) - Electron + Gemini for free desktop use
+- **Claude Extension** (DXT) - For Claude Desktop users
+- **MCP Server** - For Cursor/VSCode integration
+- **Shared Core** - Common PDF operations across all platforms
+
+See [MERGER_PROPOSAL.md](MERGER_PROPOSAL.md) for detailed plans.
+
+## Key Technical Insights
+
+1. **Direct File Access**: Gemini CLI can read files directly when given absolute paths
+2. **MCP Filesystem**: Enables access to files anywhere on system
+3. **No Upload Needed**: Native file dialogs preserve user workflow
+4. **Free Tier Magic**: 60 req/min is more than enough for personal use

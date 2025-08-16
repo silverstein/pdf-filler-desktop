@@ -1,25 +1,33 @@
-# PDF Filler - Free AI-Powered PDF Processing
+# PDF Filler Desktop - Free AI-Powered PDF Processing
 
-Transform your PDFs with the power of Google's Gemini AI - **completely free** using the generous Gemini CLI free tier!
+A native desktop application for PDF form filling and analysis, powered by Google's Gemini AI - **completely free** using Gemini's generous free tier. No API keys required!
 
-## ✨ Features
+## ✨ Current Features
 
+- 🖥️ **Native Desktop App** - System tray integration, works offline
+- 📂 **Native File Selection** - No uploads needed, works with files anywhere on your system
 - 📄 **Analyze PDFs** - Extract structure, form fields, and content
 - 📊 **Extract Data** - Convert PDF content to structured JSON
-- ✏️ **Fill Forms** - Automatically fill PDF forms with your data
 - ✅ **Validate Forms** - Check for missing required fields
-- 🔄 **Bulk Processing** - Process multiple PDFs from CSV data
-- 📈 **Compare Documents** - Identify differences between PDFs
+- 🎨 **Multiple Themes** - Dark, Light, Ocean, Forest, and more
+- 📝 **Recent Files** - Quick access to recently processed PDFs
+- 🔒 **Privacy First** - All processing happens locally
+
+## 🚧 Coming Soon
+
+- ✏️ **Fill Forms** - Actually write data back to PDFs
 - 🔐 **Password Support** - Handle encrypted PDFs
-- 🖼️ **OCR Support** - Extract text from scanned documents
+- 🔄 **Bulk Processing** - Process multiple PDFs from CSV data
+- 👤 **Profile System** - Save and reuse common form data
+- 📤 **Export to CSV** - Extract data from multiple PDFs to spreadsheet
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-1. **Node.js** (v16 or higher)
-2. **Gemini CLI** - Google's command-line AI tool
-3. **Google Account** - For Gemini authentication
+1. **Google Account** - For Gemini authentication (OAuth)
+2. **macOS, Windows, or Linux** - Cross-platform support
+3. **Node.js** (v18+) - Only needed for development
 
 ### Installation
 
@@ -28,58 +36,50 @@ Transform your PDFs with the power of Google's Gemini AI - **completely free** u
 git clone https://github.com/silverstein/pdf-filler-desktop
 cd pdf-filler-desktop
 
-# Run the setup wizard
-npm run setup
+# Install dependencies
+npm install
+
+# Start the app
+npm start
 ```
 
-The setup wizard will:
-- Check for Gemini CLI installation
-- Guide you through authentication
-- Install dependencies
-- Create configuration files
-- Optionally create desktop shortcuts
+The app will:
+- Install a local Gemini CLI instance automatically
+- Guide you through Google OAuth authentication
+- Create a system tray icon for easy access
+- Open the main window with the UI
 
-### Installing Gemini CLI
+### First-Time Authentication
 
-#### macOS/Linux:
-```bash
-curl -sSL https://gemini.google.com/cli/install.sh | bash
-```
+1. Click "Sign in with Google" in the app
+2. Complete OAuth in your browser
+3. Return to the app - you're ready to go!
 
-#### Windows:
-Download the installer from [Gemini CLI Releases](https://github.com/google/generative-ai-docs)
-
-#### Authentication:
-```bash
-# Login to your Google account
-gemini auth login
-
-# Verify authentication
-gemini auth list
-```
+No API keys needed - just your Google account!
 
 ## 🎮 Usage
 
-### Option 1: Web Interface
+### Desktop Application (Recommended)
 
 ```bash
 npm start
-# Open http://localhost:3456 in your browser
-```
-
-### Option 2: Desktop Application
-
-```bash
-npm run electron
 ```
 
 The desktop app provides:
-- System tray integration
-- Drag & drop PDF processing
-- Native file dialogs
-- Offline-capable interface
+- 📁 **Native file selection** - Click or drag to select PDFs from anywhere
+- 🔧 **System tray integration** - Runs in background, always accessible
+- 🎨 **Beautiful themes** - Multiple color schemes to choose from
+- 📊 **Recent files sidebar** - Quick access to previously processed PDFs
+- ⚡ **Fast processing** - Direct file access, no uploads needed
 
-### Option 3: API Endpoints
+### Development Mode
+
+```bash
+# Run with DevTools open
+DEBUG=1 npm start
+```
+
+### API Endpoints (For Developers)
 
 Start the server and use these endpoints:
 
@@ -123,26 +123,29 @@ This application leverages Google's generous Gemini free tier:
 ## 🏗️ Architecture
 
 ```
-gemini-pdf-filler/
+pdf-filler-desktop/
 ├── src/
+│   ├── electron.js       # Main Electron process
 │   ├── server.js         # Express API server
-│   ├── gemini-bridge.js  # Gemini CLI integration
-│   └── electron.js       # Desktop app wrapper
+│   ├── gemini-simple.js  # Gemini CLI integration
+│   ├── preload.js        # Electron preload script
+│   └── simple-auth-handler.js # OAuth management
 ├── public/
-│   └── index.html        # Web interface
-├── scripts/
-│   └── setup.js          # Installation wizard
-└── package.json
+│   ├── index.html        # Main UI (with themes)
+│   └── themes.css        # Theme definitions
+├── gemini-cli-local/     # Local Gemini instance
+│   └── .gemini/         # User credentials (git-ignored)
+└── uploads/             # Temporary file storage
 ```
 
 ### How It Works
 
-1. **PDF Upload** - User uploads PDF via web UI or desktop app
-2. **Gemini Processing** - PDF is sent to Gemini CLI with specific prompts
-3. **AI Analysis** - Gemini's 2.5 Pro model analyzes the PDF with its native PDF understanding
+1. **Native File Selection** - User selects PDF using native OS dialog (no upload needed)
+2. **MCP Filesystem Access** - Gemini accesses files directly via Model Context Protocol
+3. **AI Analysis** - Gemini 2.5 Flash/Pro analyzes the PDF with native PDF understanding
 4. **Structured Response** - Gemini returns structured JSON data
-5. **PDF Manipulation** - pdf-lib processes the PDF based on Gemini's analysis
-6. **Result Delivery** - Processed PDF or data returned to user
+5. **Real-time Display** - Results shown immediately in themed UI
+6. **Future: PDF Manipulation** - pdf-lib will process PDFs based on Gemini's analysis
 
 ## 🔧 Configuration
 
@@ -211,16 +214,28 @@ const filledPDF = await response.blob();
 
 ## 🤝 Contributing
 
-Contributions are welcome! This project demonstrates how to democratize AI tools using free tiers.
+Contributions are welcome! Check out [FEATURES.md](FEATURES.md) for the roadmap.
 
-### Ideas for Enhancement
+### Priority Features Needed
 
-- [ ] Add support for more AI providers (Anthropic, OpenAI)
-- [ ] Implement PDF merging and splitting
-- [ ] Add form template creation
-- [ ] Create browser extension
-- [ ] Add batch processing queue
-- [ ] Implement PDF to other format conversions
+- [ ] **PDF Form Filling** - Actually write data back to PDFs using pdf-lib
+- [ ] **Password Support** - Handle encrypted PDFs
+- [ ] **Bulk CSV Processing** - Fill multiple PDFs from spreadsheet data
+- [ ] **Profile System** - Save and reuse common form data
+- [ ] **Full Text Extraction** - Get all text, not just form fields
+
+### Future Enhancements
+
+- [ ] **Multi-AI Support** - Add providers like Anthropic Claude, OpenAI GPT-4
+- [ ] **PDF Operations** - Merge, split, rotate, reorder pages
+- [ ] **Template Creation** - Design custom form templates
+- [ ] **Browser Extension** - Chrome/Firefox extension for web PDFs
+- [ ] **Batch Queue** - Background processing with progress tracking
+- [ ] **Format Conversion** - PDF to Word, Excel, PowerPoint, etc.
+- [ ] **OCR Enhancement** - Better handling of scanned documents
+- [ ] **Digital Signatures** - Add signature fields and validation
+
+See [MERGER_PROPOSAL.md](MERGER_PROPOSAL.md) for plans to unify with the MCP/Claude Desktop version.
 
 ## 📄 License
 
