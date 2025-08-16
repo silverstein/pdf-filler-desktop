@@ -277,6 +277,22 @@ const jsonString = jsonMatch[0]
 - Each user's auth is isolated to their machine
 - No data sent to external servers (except Gemini AI calls)
 
+## 📋 IMPORTANT: Implementation Tracking
+
+**CHECK [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) FIRST!**
+
+This file contains:
+- All development tasks with checkboxes to track progress
+- Technical architecture decisions
+- Current state of each feature
+- What to work on next
+
+**How to use it:**
+1. Read IMPLEMENTATION_PLAN.md to see what's been done (checked boxes)
+2. Pick the next unchecked task
+3. Update checkboxes as you complete tasks
+4. Commit changes to track progress
+
 ## Integration Plans
 
 This project will eventually merge with [pdf-filler-simple](https://github.com/silverstein/pdf-filler-simple) to create a unified PDF Filler ecosystem:
@@ -293,4 +309,4 @@ See [MERGER_PROPOSAL.md](MERGER_PROPOSAL.md) for detailed plans.
 1. **Direct File Access**: Gemini CLI can read files directly when given absolute paths
 2. **MCP Filesystem**: Enables access to files anywhere on system
 3. **No Upload Needed**: Native file dialogs preserve user workflow
-4. **Free Tier Magic**: 60 req/min is more than enough for personal use
+4. **Free Tier Magic**: 60 req/min is more than enough for personal **use**
