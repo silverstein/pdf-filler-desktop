@@ -89,8 +89,8 @@ function createWindow() {
   log(`Loading URL: ${SERVER_URL}`);
   mainWindow.loadURL(SERVER_URL);
   
-  // Open DevTools in development or when debugging
-  if (!app.isPackaged || process.env.DEBUG) {
+  // Open DevTools only when DEBUG env var is set
+  if (process.env.DEBUG === '1') {
     mainWindow.webContents.openDevTools();
   }
 

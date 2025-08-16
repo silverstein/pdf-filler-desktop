@@ -30,18 +30,30 @@
         }
 
         body {
+            margin: 0;
+            padding: 0;
             min-height: 100vh;
             display: flex;
+            flex-direction: column; /* Stack header on top */
             transition: all 0.3s ease;
             overflow-x: hidden;
         }
 
         .header {
-            padding: 1rem 2rem;
+            height: 60px; /* Fixed height header */
+            width: 100%;
+            flex-shrink: 0;
+            padding: 0 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             transition: all 0.3s ease;
+        }
+
+        .app-layout {
+            display: flex; /* Sidebar and main side by side */
+            flex: 1;
+            overflow: hidden;
         }
 
         .header h1 {
@@ -635,19 +647,15 @@
         
         /* Sidebar Styles */
         .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
             width: 320px;
-            height: 100vh;
+            flex-shrink: 0;
             background: var(--background);
             border-right: 1px solid var(--border);
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-            z-index: 100;
             display: flex;
             flex-direction: column;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            /* Hide by default on mobile */
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
         }
         
         .sidebar.open {
@@ -871,22 +879,78 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            overflow-y: auto;
             transition: margin-left 0.3s ease;
         }
         
         .main-content.with-sidebar {
-            margin-left: 320px;
+            /* No margin needed - using flex layout */
+        }
+
+        /* Results area - always visible */
+        .results-area {
+            padding: 2rem;
+            background: var(--surface);
+            border-top: 2px solid var(--border);
+            min-height: 300px;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .results-area h3 {
+            margin: 0 0 1rem 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .results-placeholder {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-muted);
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .results-placeholder i {
+            display: block;
+            margin: 0 auto 1rem auto;
+        }
+
+        .results-placeholder p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* When results are populated */
+        .results-area.has-results {
+            background: var(--background);
+            border-top-color: var(--accent);
+        }
+
+        .results-area.has-results .results-placeholder {
+            display: none;
         }
         
         /* Responsive behavior */
         @media (max-width: 768px) {
+            .app-layout {
+                position: relative;
+            }
+            
             .sidebar {
+                position: absolute;
                 width: 280px;
+                height: 100%;
+                z-index: 100;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
             }
             
             .main-content.with-sidebar {
-                margin-left: 0;
+                /* No margin needed on mobile */
             }
             
             .mobile-sidebar-toggle {
@@ -895,6 +959,15 @@
             
             .sidebar.open {
                 box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
+            }
+
+            .results-area {
+                padding: 1.5rem;
+                min-height: 250px;
+            }
+
+            .results-placeholder {
+                padding: 2rem 1rem;
             }
             
             /* Overlay for mobile */
@@ -919,17 +992,15 @@
         
         @media (min-width: 769px) {
             .sidebar {
-                position: relative;
-                transform: translateX(0);
-                box-shadow: none;
+                transform: translateX(0); /* Show sidebar by default on desktop */
             }
             
             .sidebar.collapsed {
                 transform: translateX(-100%);
             }
             
-            .main-content.with-sidebar.sidebar-collapsed {
-                margin-left: 0;
+            .mobile-sidebar-toggle {
+                display: none; /* Hide mobile toggle on desktop */
             }
         }
         
@@ -1584,7 +1655,8 @@
     </style>
 </head>
 <body class="theme-brutalist">
-    <div class="header">
+    <!-- Header should be FIRST and FULL WIDTH -->
+    <header class="header">
         <h1>
             <div class="logo-icon">
                 <i data-lucide="file-text" style="width: 20px; height: 20px;"></i>
@@ -1621,14 +1693,17 @@
                 <span style="font-size: 18px; line-height: 1;">⚙</span>
             </button>
         </div>
-    </div>
+    </header>
 
-    <!-- Recent Files Sidebar -->
-    <div class="sidebar" id="recentFilesSidebar">
+    <!-- App container with sidebar and main -->
+    <div class="app-layout">
+        <!-- Sidebar on LEFT -->
+        <!-- Recent Files Sidebar -->
+        <aside class="sidebar" id="recentFilesSidebar">
         <div class="sidebar-header">
             <h3><i data-lucide="clock" style="width: 18px; height: 18px;"></i> Recent Files</h3>
             <button class="sidebar-toggle-btn" id="sidebarToggle" aria-label="Toggle sidebar">
-                <i data-lucide="chevron-left" style="width: 18px; height: 18px;"></i>
+                <i data-lucide="menu" style="width: 18px; height: 18px;"></i>
             </button>
         </div>
         <div class="sidebar-content">
@@ -1650,17 +1725,10 @@
                 </button>
             </div>
         </div>
-    </div>
+        </aside>
 
-    <!-- Sidebar Toggle Button (Mobile) -->
-    <button class="mobile-sidebar-toggle" id="mobileSidebarToggle" aria-label="Toggle recent files">
-        <i data-lucide="clock" style="width: 20px; height: 20px;"></i>
-    </button>
-    
-    <!-- Mobile Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <div class="main-content">
+        <!-- Main content on RIGHT -->
+        <main class="main-content">
         <div class="container">
             <!-- Auth Section -->
         <div id="authSection" class="auth-section" style="display: none;">
@@ -1834,8 +1902,28 @@
             </div>
 
             <div class="error-message" id="errorMessage"></div>
+
+            <!-- Results area - ALWAYS VISIBLE -->
+            <div class="results-area" id="resultsSection">
+                <h3>Analysis Results</h3>
+                <p>Your PDF analysis results will appear here after processing.</p>
+                <div class="results-placeholder">
+                    <i data-lucide="file-search" style="width: 48px; height: 48px; opacity: 0.3;"></i>
+                    <p>Upload and analyze a PDF to see results</p>
+                </div>
+            </div>
+
         </div>
+        </main>
     </div>
+
+    <!-- Sidebar Toggle Button (Mobile) -->
+    <button class="mobile-sidebar-toggle" id="mobileSidebarToggle" aria-label="Toggle recent files">
+        <i data-lucide="menu" style="width: 20px; height: 20px;"></i>
+    </button>
+    
+    <!-- Mobile Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- Form Fill Modal -->
     <div class="modal-overlay" id="formFillModal">
@@ -2913,6 +3001,12 @@
         });
 
         // Initialize Lucide icons multiple times to ensure they render
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
+        
         window.addEventListener('load', () => {
             lucide.createIcons();
         });
@@ -4441,7 +4535,5 @@
         // Global variable to store current profile data when saving
         let currentProfileData = null;
     </script>
-    </div> <!-- End main-content -->
-    </div> <!-- End container -->
 </body>
 </html>
