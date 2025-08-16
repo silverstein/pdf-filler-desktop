@@ -892,7 +892,7 @@
             padding: 2rem;
             background: var(--surface);
             border-top: 2px solid var(--border);
-            min-height: 300px;
+            min-height: 200px;
             border-radius: 8px 8px 0 0;
         }
 
@@ -908,21 +908,26 @@
 
         .results-placeholder {
             text-align: center;
-            padding: 3rem 2rem;
+            padding: 1.5rem;
             color: var(--text-muted);
-            border: 2px dashed var(--border);
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.02);
+            border: 1px dashed var(--border);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.01);
         }
 
         .results-placeholder i {
             display: block;
-            margin: 0 auto 1rem auto;
+            margin: 0 auto 0.75rem auto;
         }
 
         .results-placeholder p {
             margin: 0;
             font-size: 0.9rem;
+        }
+
+        /* Hide results div by default */
+        .results {
+            display: none;
         }
 
         /* When results are populated */
@@ -933,6 +938,10 @@
 
         .results-area.has-results .results-placeholder {
             display: none;
+        }
+
+        .results-area.has-results .results {
+            display: block;
         }
         
         /* Responsive behavior */
@@ -963,11 +972,11 @@
 
             .results-area {
                 padding: 1.5rem;
-                min-height: 250px;
+                min-height: 150px;
             }
 
             .results-placeholder {
-                padding: 2rem 1rem;
+                padding: 1rem;
             }
             
             /* Overlay for mobile */
@@ -1708,8 +1717,8 @@
         </div>
         <div class="sidebar-content">
             <div class="sidebar-search">
+                <i data-lucide="search" style="width: 16px; height: 16px; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.5; z-index: 1;"></i>
                 <input type="text" id="recentFilesSearch" placeholder="Search files..." class="search-input">
-                <i data-lucide="search" style="width: 16px; height: 16px; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.5;"></i>
             </div>
             <div class="recent-files-list" id="recentFilesList">
                 <div class="no-recent-files">
@@ -1906,9 +1915,8 @@
             <!-- Results area - ALWAYS VISIBLE -->
             <div class="results-area" id="resultsSection">
                 <h3>Analysis Results</h3>
-                <p>Your PDF analysis results will appear here after processing.</p>
                 <div class="results-placeholder">
-                    <i data-lucide="file-search" style="width: 48px; height: 48px; opacity: 0.3;"></i>
+                    <i data-lucide="file-search" style="width: 32px; height: 32px; opacity: 0.3;"></i>
                     <p>Upload and analyze a PDF to see results</p>
                 </div>
             </div>

@@ -75,8 +75,10 @@ function startServer() {
 function createWindow() {
   log('Creating main window...');
   mainWindow = new BrowserWindow({
-    width: 1000,
-    height: 700,
+    width: 1200,
+    height: 800,
+    minWidth: 1200,
+    minHeight: 600,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
