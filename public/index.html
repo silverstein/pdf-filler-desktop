@@ -1018,8 +1018,14 @@
                 transform: translateX(-100%);
             }
             
+            /* Show toggle button when sidebar is collapsed on desktop */
+            .sidebar.collapsed ~ .mobile-sidebar-toggle,
+            .main-content.sidebar-collapsed ~ .mobile-sidebar-toggle {
+                display: flex !important;
+            }
+            
             .mobile-sidebar-toggle {
-                display: none; /* Hide mobile toggle on desktop */
+                display: none; /* Hide mobile toggle on desktop when sidebar is open */
             }
         }
         
