@@ -718,6 +718,16 @@
             border-bottom: 1px solid var(--border);
         }
         
+        .sidebar-search i {
+            position: absolute;
+            left: calc(1rem + 12px); /* Account for container padding */
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
         .search-input {
             width: 100%;
             padding: 0.75rem 0.75rem 0.75rem 2.5rem;
@@ -1717,7 +1727,7 @@
         </div>
         <div class="sidebar-content">
             <div class="sidebar-search">
-                <i data-lucide="search" style="width: 16px; height: 16px; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.5; z-index: 1;"></i>
+                <i data-lucide="search" style="width: 16px; height: 16px;"></i>
                 <input type="text" id="recentFilesSearch" placeholder="Search files..." class="search-input">
             </div>
             <div class="recent-files-list" id="recentFilesList">
