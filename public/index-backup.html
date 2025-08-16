@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Filler - Free AI-Powered PDF Processing</title>
+    
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="themes.css">
+    
+    <!-- Lucide Icons (local) -->
+    <script src="lucide.min.js"></script>
+    
+    <!-- Use system fonts as fallback when Google Fonts aren't available -->
+    <style>
+        /* Fallback to system fonts */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+        }
+        code, pre {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+        }
+    </style>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .header {
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .status {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        .account-dropdown {
+            position: relative;
+        }
+
+        .account-trigger {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .account-trigger:hover {
+            background: var(--surface-hover);
+        }
+
+        .account-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            min-width: 200px;
+            z-index: 1000;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .account-menu.show {
+            display: block;
+        }
+
+        .account-menu-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.2s ease;
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+            font-size: 0.875rem;
+        }
+
+        .account-menu-item:hover {
+            background: var(--surface-hover);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            background: transparent;
+            border: 1px solid transparent;
+        }
+
+        .icon-btn:hover {
+            background: var(--surface-hover);
+            border-color: var(--border);
+        }
+
+        .settings-view {
+            display: none;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .settings-section {
+            margin-bottom: 2rem;
+        }
+
+        .settings-section h3 {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .theme-card {
+            padding: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .theme-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .theme-card.active {
+            border-color: var(--accent);
+            background: var(--surface-hover);
+        }
+
+        .theme-preview {
+            width: 100%;
+            height: 60px;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .container {
+            flex: 1;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .upload-area {
+            padding: 2rem;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area.collapsed {
+            padding: 1rem;
+            max-width: 100%;
+        }
+        
+        .upload-area.collapsed .upload-title,
+        .upload-area.collapsed .upload-subtitle,
+        .upload-area.collapsed .rate-limits {
+            display: none;
+        }
+        
+        .upload-area.collapsed .drop-zone {
+            margin: 0;
+            padding: 0.75rem;
+            min-height: auto;
+            display: flex;
+            flex-direction: row;
+            gap: 1rem;
+            background: var(--surface-hover);
+        }
+        
+        .upload-area.collapsed .drop-zone-icon {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+        
+        .file-info-compact {
+            display: none;
+            flex: 1;
+            text-align: left;
+        }
+        
+        .upload-area.collapsed .file-info-compact {
+            display: block;
+        }
+        
+        .change-file-btn {
+            display: none;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        
+        .upload-area.collapsed .change-file-btn {
+            display: block;
+        }
+
+        .upload-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .upload-subtitle {
+            margin-bottom: 1rem;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+
+        .drop-zone {
+            padding: 2rem;
+            margin: 1.5rem 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .drop-zone.compact {
+            padding: 1.5rem;
+            min-height: 100px;
+            margin: 1rem 0;
+        }
+
+        .drop-zone.compact .drop-zone-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .drop-zone-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .drop-zone p {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .drop-zone small {
+            opacity: 0.7;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area.collapsed .actions {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .action-card {
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+        
+        .upload-area.collapsed .action-card {
+            padding: 0.75rem;
+            text-align: center;
+        }
+        
+        .upload-area.collapsed .action-card h3 {
+            font-size: 0.9rem;
+        }
+        
+        .upload-area.collapsed .action-card p {
+            display: none;
+        }
+
+        .action-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .action-card p {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .rate-limits {
+            margin-top: 2rem;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .rate-limits h4 {
+            margin-bottom: 0.5rem;
+        }
+
+        .rate-limits .limits {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 1rem;
+        }
+
+        .limit-item {
+            text-align: center;
+        }
+
+        .limit-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .limit-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        .processing {
+            display: none;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+            padding: 1.5rem;
+            margin-top: 1rem;
+            transition: all 0.3s ease;
+            max-height: 50vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .results.visible {
+            display: flex;
+        }
+
+        .results h3 {
+            margin-bottom: 1rem;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .copy-btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .copy-btn:hover {
+            background: var(--surface-hover);
+        }
+
+        .copy-btn.copied {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .result-content {
+            padding: 1rem;
+            flex: 1;
+            overflow-y: auto;
+            text-align: left;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 200px;
+        }
+
+        .result-content:hover {
+            background: var(--surface-hover);
+        }
+
+        .result-content pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: var(--font-family-mono, 'Monaco', 'Menlo', 'Ubuntu Mono', monospace);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .copy-tooltip {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+
+        .result-content:hover .copy-tooltip {
+            opacity: 1;
+        }
+
+        .error-message {
+            display: none;
+            padding: 1rem;
+            margin-top: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        button {
+            padding: 0.75rem 2rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .auth-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 60vh;
+        }
+
+        .auth-card {
+            padding: 3rem;
+            max-width: 500px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .auth-card h1 {
+            margin-bottom: 1rem;
+        }
+
+        .auth-card > p {
+            margin-bottom: 2rem;
+            opacity: 0.7;
+        }
+
+        .google-signin-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 2rem;
+        }
+
+        .auth-info {
+            text-align: left;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .auth-info ul {
+            margin: 0.5rem 0 0 1.5rem;
+            opacity: 0.7;
+        }
+
+        /* Default to Brutalist theme */
+        body {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* Responsive layout for larger screens */
+        @media (min-width: 900px) {
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            
+            #mainApp {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 2rem;
+                align-items: start;
+            }
+            
+            .upload-area {
+                max-width: none;
+            }
+            
+            .results {
+                margin-top: 0;
+                max-height: 70vh;
+            }
+            
+            .upload-area.collapsed {
+                grid-column: 1 / -1;
+            }
+            
+            .upload-area.collapsed + .results {
+                grid-column: 1 / -1;
+                max-height: 60vh;
+            }
+        }
+        
+        /* Compact mode for medium screens */
+        @media (max-width: 600px) {
+            .upload-area {
+                padding: 1rem;
+            }
+            
+            .actions {
+                grid-template-columns: 1fr;
+            }
+            
+            .upload-area.collapsed .actions {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .action-card {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="theme-brutalist">
+    <div class="header">
+        <h1>
+            <div class="logo-icon">
+                <i data-lucide="file-text" style="width: 20px; height: 20px;"></i>
+            </div>
+            <span>PDF Filler</span>
+        </h1>
+        <div class="header-controls">
+            <div class="status">
+                <div class="account-dropdown">
+                    <div class="account-trigger" id="accountTrigger">
+                        <span class="status-dot" id="geminiStatus"></span>
+                        <span id="geminiStatusText">Checking...</span>
+                        <span style="font-size: 0.75rem;">▼</span>
+                    </div>
+                    <div class="account-menu" id="accountMenu">
+                        <div class="account-menu-item" id="accountEmail" style="font-weight: 500; border-bottom: 1px solid var(--border);">
+                            <!-- Email will be inserted here -->
+                        </div>
+                        <button class="account-menu-item" onclick="signOut()">
+                            <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+                            <span>Sign Out</span>
+                        </button>
+                        <button class="account-menu-item" onclick="switchAccount()">
+                            <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                            <span>Switch Account</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="status-indicator">
+                    <span>Free Tier</span>
+                </div>
+            </div>
+            <button class="icon-btn" id="settingsBtn" onclick="toggleSettings()" title="Settings">
+                <span style="font-size: 18px; line-height: 1;">⚙</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Auth Section -->
+        <div id="authSection" class="auth-section" style="display: none;">
+            <div class="auth-card">
+                <h1>Welcome to PDF Filler</h1>
+                <p>Sign in with your Google account to start processing PDFs for free</p>
+                
+                <button id="googleSignIn" class="google-signin-btn" onclick="handleGoogleSignIn()">
+                    <svg width="20" height="20" viewBox="0 0 48 48" style="margin-right: 8px;">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    Sign in with Google
+                </button>
+                
+                <div class="auth-info">
+                    <p><strong>✨ Completely Free</strong></p>
+                    <p>Using Google's generous Gemini free tier:</p>
+                    <ul>
+                        <li>60 requests per minute</li>
+                        <li>1,000 requests per day</li>
+                        <li>1M token context window</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Settings View -->
+        <div class="settings-view" id="settingsView">
+            <div class="settings-header">
+                <button class="icon-btn" onclick="toggleSettings()" style="display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 18px; line-height: 0; display: inline-block; transform: translateY(1px);">←</span>
+                </button>
+                <h2>Settings</h2>
+            </div>
+            
+            <div class="settings-section">
+                <h3><i data-lucide="palette" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Theme</h3>
+                <div class="theme-grid">
+                    <div class="theme-card" data-theme="brutalist" onclick="selectTheme('brutalist')">
+                        <div class="theme-preview" style="background: #000; color: #0F0;">[ ]</div>
+                        <h4>Brutalist Mono</h4>
+                        <small>Terminal-inspired design</small>
+                    </div>
+                    <div class="theme-card" data-theme="glassmorphic" onclick="selectTheme('glassmorphic')">
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #6366F1, #8B5CF6); color: white;">◈</div>
+                        <h4>Glassmorphic</h4>
+                        <small>Modern transparency</small>
+                    </div>
+                    <div class="theme-card" data-theme="neubrutalism" onclick="selectTheme('neubrutalism')">
+                        <div class="theme-preview" style="background: #FF0080; color: white;">■</div>
+                        <h4>Neubrutalism</h4>
+                        <small>Bold and playful</small>
+                    </div>
+                    <div class="theme-card" data-theme="gruvbox" onclick="selectTheme('gruvbox')">
+                        <div class="theme-preview" style="background: #fbf1c7; color: #282828; border: 2px solid #d5c4a1;">
+                            <i data-lucide="sun" style="width: 24px; height: 24px;"></i>
+                        </div>
+                        <h4>Gruvbox Light</h4>
+                        <small>Warm retro comfort</small>
+                    </div>
+                    <div class="theme-card" data-theme="mono" onclick="selectTheme('mono')">
+                        <div class="theme-preview" style="background: #FFFFFF; color: #000000; border: 1px solid #000000;">
+                            <i data-lucide="square" style="width: 24px; height: 24px;"></i>
+                        </div>
+                        <h4>Mono</h4>
+                        <small>Minimal with Geist</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3><i data-lucide="bar-chart-2" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Usage Limits</h3>
+                <p>You're using Google's generous free tier:</p>
+                <ul style="margin-left: 1.5rem; opacity: 0.8;">
+                    <li>60 requests per minute</li>
+                    <li>1,000 requests per day</li>
+                    <li>1M token context window</li>
+                </ul>
+            </div>
+            
+            <div class="settings-section">
+                <h3><i data-lucide="info" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> About</h3>
+                <p style="opacity: 0.8;">PDF Filler v1.0.0<br>
+                Created by Mat Silverstein<br>
+                Powered by Google Gemini AI</p>
+            </div>
+        </div>
+        
+        <div class="upload-area" id="mainApp" style="display: none;">
+            <h2 class="upload-title">AI-Powered PDF Processing</h2>
+            <p class="upload-subtitle">Powered by Google Gemini's free tier</p>
+
+            <div class="drop-zone" id="dropZone">
+                <div class="drop-zone-icon">
+                    <i data-lucide="upload" style="width: 48px; height: 48px;"></i>
+                </div>
+                <p>Drag & drop your PDF here</p>
+                <small>or click to browse</small>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf">
+            </div>
+
+            <div class="actions">
+                <div class="action-card" data-action="analyze">
+                    <h3><i data-lucide="search" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Analyze</h3>
+                    <p>Extract structure and form fields</p>
+                </div>
+                <div class="action-card" data-action="extract">
+                    <h3><i data-lucide="database" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Extract Data</h3>
+                    <p>Convert PDF content to JSON</p>
+                </div>
+                <div class="action-card" data-action="fill">
+                    <h3><i data-lucide="pen-tool" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Fill Form</h3>
+                    <p>Auto-fill PDF forms with data</p>
+                </div>
+                <div class="action-card" data-action="validate">
+                    <h3><i data-lucide="check-circle" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Validate</h3>
+                    <p>Check required fields</p>
+                </div>
+            </div>
+
+            <div class="rate-limits">
+                <h4><i data-lucide="activity" style="width: 18px; height: 18px; display: inline-block; vertical-align: text-bottom;"></i> Usage Limits (Free Tier)</h4>
+                <div class="limits">
+                    <div class="limit-item">
+                        <div class="limit-value" id="minuteLimit">60</div>
+                        <div class="limit-label">per minute</div>
+                    </div>
+                    <div class="limit-item">
+                        <div class="limit-value" id="dayLimit">1000</div>
+                        <div class="limit-label">per day</div>
+                    </div>
+                    <div class="limit-item">
+                        <div class="limit-value">1M</div>
+                        <div class="limit-label">token context</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="processing" id="processing">
+                <div class="spinner"></div>
+                <p id="processingText">Processing with Gemini AI...</p>
+                <small style="display: block; margin-top: 10px;">
+                    This may take 30-60 seconds for complex PDFs
+                </small>
+                <div id="processingTimer" style="margin-top: 10px; font-size: 0.9em;"></div>
+            </div>
+
+            <div class="results" id="results">
+                <div class="result-header">
+                    <h3>Results</h3>
+                    <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">
+                        <i id="copyIcon" data-lucide="clipboard" style="width: 16px; height: 16px;"></i>
+                        <span id="copyText">Copy JSON</span>
+                    </button>
+                </div>
+                <div class="result-content" id="resultContent" onclick="copyToClipboard()">
+                    <span class="copy-tooltip">Click to copy</span>
+                </div>
+                <button onclick="downloadResult()" style="margin-top: 1rem;">Download Result</button>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let currentResult = null;
+        let isAuthenticated = false;
+        let currentTheme = localStorage.getItem('selectedTheme') || 'brutalist';
+
+        // Toggle between main app and settings
+        function toggleSettings() {
+            const settingsView = document.getElementById('settingsView');
+            const mainApp = document.getElementById('mainApp');
+            const authSection = document.getElementById('authSection');
+            
+            if (settingsView.style.display === 'block') {
+                // Go back to main app
+                settingsView.style.display = 'none';
+                if (isAuthenticated) {
+                    mainApp.style.display = 'block';
+                } else {
+                    authSection.style.display = 'block';
+                }
+            } else {
+                // Show settings
+                settingsView.style.display = 'block';
+                mainApp.style.display = 'none';
+                authSection.style.display = 'none';
+                updateThemeCards();
+            }
+            
+            // Refresh icons
+            setTimeout(() => lucide.createIcons(), 10);
+        }
+
+        // Update active theme card
+        function updateThemeCards() {
+            document.querySelectorAll('.theme-card').forEach(card => {
+                if (card.dataset.theme === currentTheme) {
+                    card.classList.add('active');
+                } else {
+                    card.classList.remove('active');
+                }
+            });
+        }
+
+        // Select theme from settings
+        function selectTheme(themeName) {
+            applyTheme(themeName);
+            updateThemeCards();
+            lucide.createIcons();
+        }
+
+        // Apply saved theme on load
+        function applyTheme(themeName) {
+            document.body.className = `theme-${themeName}`;
+            currentTheme = themeName;
+            localStorage.setItem('selectedTheme', themeName);
+            
+            // Apply theme-specific styles dynamically
+            updateThemeStyles(themeName);
+        }
+
+        function updateThemeStyles(themeName) {
+            const header = document.querySelector('.header');
+            const uploadArea = document.querySelector('.upload-area');
+            const dropZone = document.querySelector('.drop-zone');
+            const actionCards = document.querySelectorAll('.action-card');
+            const authCard = document.querySelector('.auth-card');
+            const statusIndicators = document.querySelectorAll('.status-indicator');
+            const rateLimits = document.querySelector('.rate-limits');
+            const results = document.querySelector('.results');
+            const errorMessage = document.querySelector('.error-message');
+            const statusDot = document.querySelector('.status-dot');
+            const logoIcon = document.querySelector('.logo-icon');
+            
+            // Reset all custom styles
+            const elements = [header, uploadArea, dropZone, authCard, rateLimits, results, errorMessage, logoIcon, ...actionCards, ...statusIndicators];
+            elements.forEach(el => {
+                if (el) el.style = '';
+            });
+
+            switch(themeName) {
+                case 'brutalist':
+                    document.body.style.background = 'var(--bg)';
+                    if (header) {
+                        header.style.borderBottom = '1px solid var(--border)';
+                        header.style.background = 'var(--surface)';
+                    }
+                    if (uploadArea) {
+                        uploadArea.style.background = 'var(--surface)';
+                        uploadArea.style.border = '1px solid var(--border)';
+                        uploadArea.style.borderRadius = '0';
+                    }
+                    if (dropZone) {
+                        dropZone.style.border = '2px dashed var(--border)';
+                        dropZone.style.borderRadius = '0';
+                    }
+                    actionCards.forEach(card => {
+                        card.style.border = '1px solid var(--border)';
+                        card.style.borderRadius = '0';
+                        card.style.background = 'var(--surface)';
+                    });
+                    if (statusDot) statusDot.style.background = 'var(--success)';
+                    break;
+
+
+                case 'glassmorphic':
+                    document.body.style.background = '#0A0E1A';
+                    if (header) {
+                        header.style.background = 'rgba(17, 24, 39, 0.5)';
+                        header.style.backdropFilter = 'blur(20px) saturate(180%)';
+                        header.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+                    }
+                    if (uploadArea) {
+                        uploadArea.style.background = 'rgba(255, 255, 255, 0.03)';
+                        uploadArea.style.backdropFilter = 'blur(20px) saturate(180%)';
+                        uploadArea.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+                        uploadArea.style.borderRadius = '16px';
+                        uploadArea.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.3)';
+                    }
+                    if (dropZone) {
+                        dropZone.style.background = 'rgba(99, 102, 241, 0.05)';
+                        dropZone.style.border = '2px dashed rgba(99, 102, 241, 0.3)';
+                        dropZone.style.borderRadius = '12px';
+                    }
+                    if (logoIcon) {
+                        logoIcon.style.background = 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)';
+                        logoIcon.style.borderRadius = '8px';
+                        logoIcon.style.color = 'white';
+                    }
+                    actionCards.forEach(card => {
+                        card.style.background = 'rgba(255, 255, 255, 0.03)';
+                        card.style.backdropFilter = 'blur(20px)';
+                        card.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+                        card.style.borderRadius = '12px';
+                    });
+                    statusIndicators.forEach(ind => {
+                        ind.style.background = 'rgba(255, 255, 255, 0.05)';
+                        ind.style.backdropFilter = 'blur(10px)';
+                        ind.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+                        ind.style.borderRadius = '100px';
+                    });
+                    if (statusDot) {
+                        statusDot.style.background = '#34D399';
+                        statusDot.style.boxShadow = '0 0 8px rgba(52, 211, 153, 0.5)';
+                    }
+                    break;
+
+                case 'neubrutalism':
+                    document.body.style.background = '#FFF8E7';
+                    if (header) {
+                        header.style.background = 'white';
+                        header.style.border = '4px solid #000';
+                        header.style.boxShadow = '6px 6px 0 #000';
+                        header.style.margin = '1rem';
+                    }
+                    if (uploadArea) {
+                        uploadArea.style.background = 'white';
+                        uploadArea.style.border = '4px solid #000';
+                        uploadArea.style.borderRadius = '0';
+                        uploadArea.style.boxShadow = '8px 8px 0 #000';
+                    }
+                    if (dropZone) {
+                        dropZone.style.border = '4px dashed #000';
+                        dropZone.style.borderRadius = '0';
+                        dropZone.style.background = 'linear-gradient(45deg, #FFE5F1 25%, transparent 25%, transparent 75%, #FFE5F1 75%, #FFE5F1), linear-gradient(45deg, #FFE5F1 25%, transparent 25%, transparent 75%, #FFE5F1 75%, #FFE5F1)';
+                        dropZone.style.backgroundSize = '20px 20px';
+                        dropZone.style.backgroundPosition = '0 0, 10px 10px';
+                    }
+                    if (logoIcon) {
+                        logoIcon.style.background = '#FF0080';
+                        logoIcon.style.border = '3px solid #000';
+                        logoIcon.style.borderRadius = '0';
+                        logoIcon.style.color = 'white';
+                        logoIcon.style.transform = 'rotate(-5deg)';
+                        logoIcon.style.boxShadow = '3px 3px 0 #000';
+                    }
+                    actionCards.forEach((card, index) => {
+                        const colors = ['#FFE5F1', '#E5F1FF', '#FFFBE5', '#E5FFE5'];
+                        card.style.background = colors[index % 4];
+                        card.style.border = '4px solid #000';
+                        card.style.borderRadius = '0';
+                        card.style.boxShadow = '5px 5px 0 #000';
+                    });
+                    statusIndicators.forEach(ind => {
+                        ind.style.background = '#FFD700';
+                        ind.style.border = '3px solid #000';
+                        ind.style.borderRadius = '0';
+                        ind.style.boxShadow = '3px 3px 0 #000';
+                    });
+                    if (statusDot) statusDot.style.background = '#00FF88';
+                    break;
+                    
+                case 'gruvbox':
+                    document.body.style.background = 'var(--bg)';
+                    // Gruvbox theme uses CSS variables from themes.css
+                    // No need for manual style overrides
+                    if (statusDot) statusDot.style.background = 'var(--success)';
+                    break;
+                    
+                case 'mono':
+                    document.body.style.background = 'var(--bg)';
+                    document.body.style.fontFamily = 'var(--font-family)';
+                    // Mono themes use CSS variables from themes.css
+                    if (statusDot) statusDot.style.background = 'var(--success)';
+                    break;
+            }
+        }
+
+        // Initialize theme
+        applyTheme(currentTheme);
+
+        // Check authentication status on load
+        async function checkAuthStatus() {
+            if (window.electronAPI) {
+                const authStatus = await window.electronAPI.checkAuthStatus();
+                isAuthenticated = authStatus.authenticated;
+                
+                if (isAuthenticated) {
+                    document.getElementById('authSection').style.display = 'none';
+                    document.getElementById('mainApp').style.display = 'block';
+                    document.getElementById('geminiStatus').style.background = 'var(--success)';
+                    document.getElementById('geminiStatusText').textContent = `${authStatus.email}`;
+                    document.getElementById('accountEmail').innerHTML = `<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>${authStatus.email}</span>`;
+                    lucide.createIcons();
+                } else {
+                    document.getElementById('authSection').style.display = 'block';
+                    document.getElementById('mainApp').style.display = 'none';
+                }
+            } else {
+                checkGeminiStatus();
+            }
+        }
+
+        // Account dropdown functionality
+        const accountTrigger = document.getElementById('accountTrigger');
+        const accountMenu = document.getElementById('accountMenu');
+
+        if (accountTrigger) {
+            accountTrigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                accountMenu.classList.toggle('show');
+            });
+        }
+
+        document.addEventListener('click', () => {
+            if (accountMenu) {
+                accountMenu.classList.remove('show');
+            }
+        });
+
+        // Sign out function
+        async function signOut() {
+            if (window.electronAPI) {
+                const confirmed = confirm('Are you sure you want to sign out? You will need to re-authenticate with Google to use the app again.');
+                if (confirmed) {
+                    await window.electronAPI.clearAuth();
+                    // Reload the page to show auth screen
+                    window.location.reload();
+                }
+            }
+        }
+
+        // Switch account function
+        async function switchAccount() {
+            if (window.electronAPI) {
+                const confirmed = confirm('This will sign you out and open the authentication flow for a new account. Continue?');
+                if (confirmed) {
+                    await window.electronAPI.clearAuth();
+                    // Small delay before starting new auth
+                    setTimeout(async () => {
+                        await window.electronAPI.startGoogleAuth();
+                        // Reload to show auth screen
+                        window.location.reload();
+                    }, 500);
+                }
+            }
+        }
+
+        // Handle Google Sign In
+        async function handleGoogleSignIn() {
+            if (window.electronAPI) {
+                const signInBtn = document.getElementById('googleSignIn');
+                signInBtn.disabled = true;
+                signInBtn.textContent = 'Opening Terminal for authentication...';
+                
+                const result = await window.electronAPI.startGoogleAuth();
+                
+                if (result.success) {
+                    signInBtn.textContent = 'Complete sign-in in Terminal and browser...';
+                    
+                    const authCheckInterval = setInterval(async () => {
+                        const authStatus = await window.electronAPI.checkAuthStatus();
+                        if (authStatus.authenticated) {
+                            clearInterval(authCheckInterval);
+                            signInBtn.textContent = 'Success! Redirecting...';
+                            setTimeout(() => {
+                                checkAuthStatus();
+                            }, 1000);
+                        }
+                    }, 3000);
+                    
+                    setTimeout(() => {
+                        clearInterval(authCheckInterval);
+                        signInBtn.disabled = false;
+                        signInBtn.innerHTML = `
+                            <svg width="20" height="20" viewBox="0 0 48 48" style="margin-right: 8px;">
+                                <!-- Google logo SVG paths -->
+                            </svg>
+                            Sign in with Google
+                        `;
+                    }, 300000);
+                } else {
+                    signInBtn.disabled = false;
+                    signInBtn.innerHTML = `
+                        <svg width="20" height="20" viewBox="0 0 48 48" style="margin-right: 8px;">
+                            <!-- Google logo SVG paths -->
+                        </svg>
+                        Sign in with Google
+                    `;
+                    alert('Failed to start authentication: ' + result.error);
+                }
+            }
+        }
+
+        // Original checkGeminiStatus function as fallback
+        async function checkGeminiStatus() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                const statusDot = document.getElementById('geminiStatus');
+                const statusText = document.getElementById('geminiStatusText');
+                
+                if (data.geminiCLI === 'available') {
+                    statusDot.style.background = 'var(--success)';
+                    statusText.textContent = 'Gemini CLI Ready';
+                } else {
+                    statusDot.style.background = 'var(--error)';
+                    statusText.textContent = 'Gemini CLI Not Found';
+                    showError('Please install Gemini CLI to use this application');
+                }
+            } catch (error) {
+                console.error('Health check failed:', error);
+            }
+        }
+
+        // File handling
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--accent)';
+            dropZone.style.background = 'var(--surface-hover)';
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            updateThemeStyles(currentTheme);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            updateThemeStyles(currentTheme);
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            selectedFile = file;
+            const uploadArea = document.querySelector('.upload-area');
+            uploadArea.classList.add('collapsed');
+            
+            dropZone.innerHTML = `
+                <div class="drop-zone-icon">
+                    <i data-lucide="file-check" style="width: 24px; height: 24px;"></i>
+                </div>
+                <div class="file-info-compact">
+                    <strong>${file.name}</strong><br>
+                    <small>${(file.size / 1024 / 1024).toFixed(2)} MB</small>
+                </div>
+                <button class="change-file-btn" onclick="resetUpload()">Change File</button>
+            `;
+            lucide.createIcons();
+            
+            // Scroll to show actions
+            setTimeout(() => {
+                document.querySelector('.actions').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 300);
+        }
+        
+        window.resetUpload = function() {
+            const uploadArea = document.querySelector('.upload-area');
+            uploadArea.classList.remove('collapsed');
+            selectedFile = null;
+            
+            const dropZone = document.getElementById('dropZone');
+            dropZone.classList.remove('compact');
+            dropZone.innerHTML = `
+                <div class="drop-zone-icon">
+                    <i data-lucide="upload" style="width: 48px; height: 48px;"></i>
+                </div>
+                <p>Drag & drop your PDF here</p>
+                <small>or click to browse</small>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf">
+            `;
+            
+            // Re-attach file input event
+            const newFileInput = document.getElementById('fileInput');
+            newFileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+            
+            // Re-attach drop zone click handler
+            dropZone.addEventListener('click', () => newFileInput.click());
+            
+            lucide.createIcons();
+            hideResults();
+        }
+
+        // Action handlers
+        document.querySelectorAll('.action-card').forEach(card => {
+            card.addEventListener('click', async () => {
+                if (!selectedFile) {
+                    showError('Please select a PDF file first');
+                    return;
+                }
+                
+                const action = card.dataset.action;
+                await processFile(action);
+            });
+        });
+
+        async function processFile(action) {
+            showProcessing();
+            hideError();
+            hideResults();
+            
+            const formData = new FormData();
+            formData.append('pdf', selectedFile);
+            
+            if (action === 'fill') {
+                const dataInput = prompt('Enter data to fill in JSON format, or press OK for sample data:\n\nExample:\n{\n  "name": "John Doe",\n  "address": "123 Main St"\n}');
+                
+                let fillData;
+                if (dataInput && dataInput.trim()) {
+                    try {
+                        fillData = JSON.parse(dataInput);
+                    } catch (e) {
+                        showError('Invalid JSON format. Using sample data instead.');
+                        fillData = {
+                            name: "John Doe",
+                            business_name: "Doe Enterprises",
+                            address: "123 Main Street",
+                            city: "New York",
+                            state: "NY",
+                            zip: "10001"
+                        };
+                    }
+                } else {
+                    fillData = {
+                        name: "John Doe",
+                        business_name: "Doe Enterprises", 
+                        address: "123 Main Street",
+                        city: "New York",
+                        state: "NY",
+                        zip: "10001",
+                        social_security_number: "123-45-6789"
+                    };
+                }
+                
+                formData.append('data', JSON.stringify(fillData));
+            }
+            
+            try {
+                const response = await fetch(`/api/${action}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+                }
+                
+                if (action === 'fill') {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `filled-${selectedFile.name}`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    showResults({ message: 'PDF filled and downloaded!' });
+                } else {
+                    const data = await response.json();
+                    showResults(data);
+                }
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                hideProcessing();
+            }
+        }
+
+        let processingTimer;
+        let processingStartTime;
+        
+        function showProcessing() {
+            document.getElementById('processing').style.display = 'block';
+            processingStartTime = Date.now();
+            
+            processingTimer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - processingStartTime) / 1000);
+                document.getElementById('processingTimer').textContent = `Processing time: ${elapsed} seconds`;
+            }, 1000);
+        }
+
+        function hideProcessing() {
+            document.getElementById('processing').style.display = 'none';
+            if (processingTimer) {
+                clearInterval(processingTimer);
+                processingTimer = null;
+            }
+            document.getElementById('processingTimer').textContent = '';
+        }
+
+        function showResults(data) {
+            currentResult = data;
+            const resultsEl = document.getElementById('results');
+            resultsEl.style.display = 'flex';
+            resultsEl.classList.add('visible');
+            const resultContent = document.getElementById('resultContent');
+            resultContent.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre><span class="copy-tooltip">Click to copy</span>`;
+            
+            // Reset copy button state
+            const copyBtn = document.getElementById('copyBtn');
+            const copyText = document.getElementById('copyText');
+            const copyIcon = document.getElementById('copyIcon');
+            copyBtn.classList.remove('copied');
+            copyText.textContent = 'Copy JSON';
+            copyIcon.textContent = '📋';
+            
+            // Scroll to results
+            setTimeout(() => {
+                resultsEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
+
+        async function copyToClipboard() {
+            if (!currentResult) return;
+            
+            const jsonString = JSON.stringify(currentResult, null, 2);
+            
+            try {
+                await navigator.clipboard.writeText(jsonString);
+                
+                // Update button state
+                const copyBtn = document.getElementById('copyBtn');
+                const copyText = document.getElementById('copyText');
+                const copyIcon = document.getElementById('copyIcon');
+                
+                copyBtn.classList.add('copied');
+                copyText.textContent = 'Copied!';
+                copyIcon.setAttribute('data-lucide', 'check');
+                lucide.createIcons();
+                
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyText.textContent = 'Copy JSON';
+                    copyIcon.setAttribute('data-lucide', 'clipboard');
+                    lucide.createIcons();
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = jsonString;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    
+                    // Update button state
+                    const copyBtn = document.getElementById('copyBtn');
+                    const copyText = document.getElementById('copyText');
+                    const copyIcon = document.getElementById('copyIcon');
+                    
+                    copyBtn.classList.add('copied');
+                    copyText.textContent = 'Copied!';
+                    copyIcon.textContent = '✅';
+                    
+                    setTimeout(() => {
+                        copyBtn.classList.remove('copied');
+                        copyText.textContent = 'Copy JSON';
+                        copyIcon.textContent = '📋';
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                    showError('Failed to copy to clipboard');
+                }
+                
+                document.body.removeChild(textArea);
+            }
+        }
+
+        function hideResults() {
+            const resultsEl = document.getElementById('results');
+            resultsEl.style.display = 'none';
+            resultsEl.classList.remove('visible');
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            errorEl.style.background = 'var(--error)';
+            errorEl.style.color = 'white';
+            errorEl.style.padding = '1rem';
+            errorEl.style.borderRadius = '8px';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function downloadResult() {
+            if (!currentResult) return;
+            
+            const blob = new Blob([JSON.stringify(currentResult, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'result.json';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Initialize
+        checkAuthStatus();
+        
+        // Initialize Lucide icons multiple times to ensure they render
+        window.addEventListener('load', () => {
+            lucide.createIcons();
+        });
+        
+        // Try immediately as well
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        // And after a short delay
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 500);
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Cmd+, (Mac) or Ctrl+, (Windows/Linux) for settings
+            if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+                e.preventDefault();
+                const settingsView = document.getElementById('settingsView');
+                const mainApp = document.getElementById('mainApp');
+                
+                // Only open settings if authenticated and not already in settings
+                if (isAuthenticated && settingsView.style.display !== 'block') {
+                    toggleSettings();
+                }
+            }
+            
+            // ESC to close settings and return to main app
+            if (e.key === 'Escape') {
+                const settingsView = document.getElementById('settingsView');
+                if (settingsView.style.display === 'block') {
+                    e.preventDefault();
+                    toggleSettings();
+                }
+            }
+            
+            // Cmd+O (Mac) or Ctrl+O (Windows/Linux) to open a file
+            if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
+                e.preventDefault();
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput && isAuthenticated) {
+                    fileInput.click();
+                }
+            }
+        });
+        
+        // Listen for settings event from Electron tray
+        if (window.electronAPI) {
+            window.electronAPI.onOpenSettings(() => {
+                if (isAuthenticated) {
+                    toggleSettings();
+                }
+            });
+        }
+    </script>
+</body>
+</html>

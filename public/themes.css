@@ -1,0 +1,806 @@
+/* Theme System for PDF Filler */
+
+/* ============================================
+   THEME 1: BRUTALIST MONO
+   ============================================ */
+
+.theme-brutalist {
+    --bg: #FFFFFF;
+    --text: #000000;
+    --accent: #0066FF;
+    --border: #000000;
+    --muted: #666666;
+    --surface: #F5F5F5;
+    --success: #00CC00;
+    --error: #FF0000;
+    --warning: #FFAA00;
+    --font-family: 'JetBrains Mono', 'Courier New', monospace;
+    --font-family-mono: 'JetBrains Mono', 'Courier New', monospace;
+    --font-size: 13px;
+    --border-radius: 0;
+    --box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    .theme-brutalist {
+        --bg: #000000;
+        --text: #00FF41;
+        --accent: #00FF41;
+        --border: #00FF41;
+        --muted: #008F11;
+        --surface: #001100;
+        --success: #00FF41;
+        --error: #FF0040;
+        --warning: #FFD700;
+    }
+}
+
+.theme-brutalist.dark-mode {
+    --bg: #000000;
+    --text: #00FF41;
+    --accent: #00FF41;
+    --border: #00FF41;
+    --muted: #008F11;
+    --surface: #001100;
+    --success: #00FF41;
+    --error: #FF0040;
+    --warning: #FFD700;
+}
+
+
+/* ============================================
+   THEME 3: GLASSMORPHIC DARK
+   ============================================ */
+
+.theme-glassmorphic {
+    --bg: #0A0E1A;
+    --text: #E8E9ED;
+    --accent: #6366F1;
+    --accent-secondary: #8B5CF6;
+    --border: rgba(255, 255, 255, 0.08);
+    --muted: #6B7280;
+    --surface: rgba(255, 255, 255, 0.03);
+    --surface-hover: rgba(255, 255, 255, 0.05);
+    --success: #34D399;
+    --error: #F87171;
+    --warning: #FBBF24;
+    --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+    --font-family-mono: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    --font-size: 14px;
+    --border-radius: 16px;
+    --box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    --backdrop-blur: blur(20px) saturate(180%);
+}
+
+/* ============================================
+   THEME 4: NEUBRUTALISM
+   ============================================ */
+
+.theme-neubrutalism {
+    --bg: #FFF8E7;
+    --text: #000000;
+    --accent: #FF0080;
+    --accent-secondary: #0080FF;
+    --accent-tertiary: #00FF88;
+    --accent-quaternary: #FFD700;
+    --border: #000000;
+    --muted: #666666;
+    --surface: #FFFFFF;
+    --surface-hover: #FFE5F1;
+    --success: #00FF88;
+    --error: #FF0080;
+    --warning: #FFD700;
+    --font-family: 'Space Grotesk', sans-serif;
+    --font-family-mono: 'JetBrains Mono', monospace;
+    --font-size: 16px;
+    --border-width: 4px;
+    --border-radius: 0;
+    --box-shadow-sm: 4px 4px 0 #000000;
+    --box-shadow: 6px 6px 0 #000000;
+    --box-shadow-lg: 8px 8px 0 #000000;
+}
+
+/* ============================================
+   THEME 5: GRUVBOX LIGHT HARD
+   ============================================ */
+
+.theme-gruvbox {
+    --bg: #f9f5d7;  /* bg0_h */
+    --bg-soft: #fbf1c7;  /* bg0 */
+    --text: #282828;  /* fg0 */
+    --text-soft: #3c3836;  /* fg1 */
+    --accent: #af3a03;  /* red */
+    --accent-secondary: #b57614;  /* yellow */
+    --accent-tertiary: #79740e;  /* green */
+    --accent-quaternary: #076678;  /* blue */
+    --border: #d5c4a1;  /* bg2 */
+    --muted: #7c6f64;  /* gray */
+    --surface: #fbf1c7;  /* bg0 */
+    --surface-hover: #ebdbb2;  /* bg1 */
+    --success: #79740e;  /* green */
+    --error: #9d0006;  /* red dark */
+    --warning: #b57614;  /* yellow */
+    --font-family: 'JetBrains Mono', 'Source Code Pro', 'Consolas', monospace;
+    --font-size: 14px;
+    --border-radius: 4px;
+    --box-shadow: 0 2px 8px rgba(40, 40, 40, 0.1);
+}
+
+/* Theme-specific adjustments for Gruvbox */
+.theme-gruvbox .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.theme-gruvbox .upload-area,
+.theme-gruvbox .action-card,
+.theme-gruvbox .results,
+.theme-gruvbox .auth-card,
+.theme-gruvbox .settings-view {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+}
+
+.theme-gruvbox .drop-zone {
+    background: var(--bg);
+    border: 2px dashed var(--border);
+    border-radius: var(--border-radius);
+}
+
+.theme-gruvbox .drop-zone:hover {
+    border-color: var(--accent-secondary);
+    background: var(--surface-hover);
+}
+
+.theme-gruvbox button {
+    background: var(--accent-secondary);
+    color: var(--bg);
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+}
+
+.theme-gruvbox button:hover {
+    background: var(--accent);
+}
+
+.theme-gruvbox .status-indicator,
+.theme-gruvbox .account-trigger {
+    background: var(--surface-hover);
+    border-radius: var(--border-radius);
+}
+
+.theme-gruvbox .action-card:nth-child(1) {
+    border-left: 3px solid var(--accent);
+}
+
+.theme-gruvbox .action-card:nth-child(2) {
+    border-left: 3px solid var(--accent-secondary);
+}
+
+.theme-gruvbox .action-card:nth-child(3) {
+    border-left: 3px solid var(--accent-tertiary);
+}
+
+.theme-gruvbox .action-card:nth-child(4) {
+    border-left: 3px solid var(--accent-quaternary);
+}
+
+.theme-gruvbox .action-card:hover {
+    background: var(--surface-hover);
+    transform: translateX(2px);
+}
+
+.theme-gruvbox .theme-card.active {
+    border-color: var(--accent-secondary);
+    background: var(--surface-hover);
+}
+
+.theme-gruvbox .copy-btn {
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+}
+
+.theme-gruvbox .copy-btn:hover {
+    background: var(--accent-secondary);
+    color: var(--bg);
+}
+
+.theme-gruvbox .copy-btn.copied {
+    background: var(--success);
+    color: var(--bg);
+}
+
+.theme-gruvbox code,
+.theme-gruvbox pre {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.5rem;
+    border-radius: var(--border-radius);
+}
+
+/* ============================================
+   THEME 6: MONO (System-aware Light/Dark)
+   ============================================ */
+
+.theme-mono {
+    /* Light mode (default) */
+    --bg: #FFFFFF;
+    --bg-secondary: #FAFAFA;
+    --text: #000000;
+    --text-secondary: #666666;
+    --accent: #000000;
+    --border: #000000;
+    --border-light: #E5E5E5;
+    --muted: #767676;
+    --surface: #FFFFFF;
+    --surface-hover: #F5F5F5;
+    --success: #00C853;
+    --error: #FF3B30;
+    --warning: #FF9500;
+    --font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-family-mono: 'Geist Mono', 'SF Mono', Monaco, monospace;
+    --font-size: 14px;
+    --border-radius: 0;
+    --box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    .theme-mono {
+        --bg: #000000;
+        --bg-secondary: #0A0A0A;
+        --text: #FFFFFF;
+        --text-secondary: #A0A0A0;
+        --accent: #FFFFFF;
+        --border: #FFFFFF;
+        --border-light: #333333;
+        --muted: #808080;
+        --surface: #0A0A0A;
+        --surface-hover: #1A1A1A;
+        --success: #00FF88;
+        --error: #FF453A;
+        --warning: #FF9F0A;
+    }
+}
+
+/* Theme-specific adjustments for Mono */
+.theme-mono * {
+    letter-spacing: -0.011em;
+}
+
+/* Ensure all icons use the theme's text color */
+.theme-mono svg {
+    color: var(--text) !important;
+    stroke: currentColor !important;
+    fill: none !important;
+}
+
+.theme-mono [data-lucide] {
+    color: var(--text) !important;
+}
+
+.theme-mono .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border) !important;
+}
+
+.theme-mono .upload-area {
+    background: var(--surface);
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+}
+
+.theme-mono .settings-view {
+    background: var(--surface);
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+}
+
+.theme-mono .action-card {
+    background: var(--surface);
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    transition: all 0.15s ease;
+}
+
+.theme-mono .action-card:hover {
+    background: var(--surface-hover);
+    transform: translateX(2px);
+}
+
+.theme-mono .drop-zone {
+    background: var(--surface);
+    border: 2px dashed var(--border) !important;
+    border-radius: 0 !important;
+}
+
+.theme-mono .drop-zone:hover {
+    background: var(--surface-hover);
+}
+
+.theme-mono button {
+    background: var(--accent);
+    color: var(--bg);
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    font-weight: 500;
+    font-family: var(--font-family);
+    padding: 0.625rem 1.25rem;
+    font-size: 14px;
+    transition: all 0.15s ease;
+}
+
+.theme-mono button:hover {
+    background: var(--bg);
+    color: var(--accent);
+}
+
+.theme-mono .copy-btn {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border) !important;
+}
+
+.theme-mono .copy-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+.theme-mono .copy-btn.copied {
+    background: var(--success);
+    color: var(--bg);
+    border-color: var(--success) !important;
+}
+
+.theme-mono .results {
+    background: var(--surface);
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+}
+
+.theme-mono .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+}
+
+.theme-mono pre,
+.theme-mono code {
+    font-family: var(--font-family-mono);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light) !important;
+    border-radius: 0 !important;
+    padding: 0.5rem;
+}
+
+.theme-mono .theme-card {
+    border: 1px solid var(--border-light) !important;
+    border-radius: 0 !important;
+}
+
+.theme-mono .theme-card.active {
+    border: 2px solid var(--accent) !important;
+}
+
+.theme-mono .account-trigger,
+.theme-mono .status-indicator {
+    border: 1px solid var(--border-light) !important;
+    border-radius: 0 !important;
+}
+
+.theme-mono .account-trigger:hover {
+    background: var(--surface-hover);
+}
+
+.theme-mono .rate-limits {
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+}
+
+.theme-mono .account-menu {
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+}
+
+.theme-mono .icon-btn {
+    border: 1px solid var(--border-light) !important;
+    border-radius: 0 !important;
+    background: transparent;
+    color: var(--text) !important;
+}
+
+.theme-mono .icon-btn svg,
+.theme-mono .icon-btn i {
+    color: var(--text) !important;
+    stroke: var(--text) !important;
+}
+
+.theme-mono .icon-btn:hover {
+    background: var(--accent);
+    color: var(--bg) !important;
+    border-color: var(--accent) !important;
+}
+
+.theme-mono .icon-btn:hover svg,
+.theme-mono .icon-btn:hover i {
+    color: var(--bg) !important;
+    stroke: var(--bg) !important;
+}
+
+
+ .header {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+ .upload-area,
+ .settings-view {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--box-shadow);
+}
+
+ .action-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    transition: all 0.15s ease;
+}
+
+ .action-card:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--box-shadow);
+}
+
+ .drop-zone {
+    background: var(--bg-secondary);
+    border: 1.5px dashed var(--border);
+    border-radius: var(--border-radius);
+}
+
+ .drop-zone:hover {
+    border-color: var(--accent);
+    background: var(--surface-hover);
+}
+
+ button {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-weight: 500;
+    font-family: var(--font-family);
+    padding: 0.625rem 1.25rem;
+    font-size: 14px;
+    transition: opacity 0.15s ease;
+}
+
+ button:hover {
+    opacity: 0.9;
+}
+
+ .copy-btn {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+ .copy-btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-dark);
+}
+
+ .results,
+ .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius-lg);
+}
+
+ pre,
+ code {
+    font-family: var(--font-family-mono);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius-sm);
+    color: var(--text);
+}
+
+ .theme-card.active {
+    border: 2px solid var(--accent);
+}
+
+ .account-trigger,
+ .status-indicator {
+    background: transparent;
+    border-radius: var(--border-radius-sm);
+}
+
+ .account-trigger:hover,
+ .status-indicator:hover {
+    background: var(--surface-hover);
+}
+
+ .status-dot {
+    background: var(--success);
+}
+
+/* ============================================
+   SHARED THEME STYLES
+   ============================================ */
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Theme-specific adjustments for Brutalist */
+.theme-brutalist .header,
+.theme-brutalist .upload-area,
+.theme-brutalist .action-card,
+.theme-brutalist .results,
+.theme-brutalist .auth-card {
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--surface);
+}
+
+.theme-brutalist .drop-zone {
+    border: 2px dashed var(--border);
+}
+
+.theme-brutalist button {
+    background: var(--bg);
+    color: var(--text);
+    border: 2px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: var(--font-family);
+}
+
+.theme-brutalist button:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+
+/* Theme-specific adjustments for Glassmorphic */
+.theme-glassmorphic .header {
+    background: var(--surface);
+    backdrop-filter: var(--backdrop-blur);
+    -webkit-backdrop-filter: var(--backdrop-blur);
+    border: 1px solid var(--border);
+}
+
+.theme-glassmorphic .upload-area,
+.theme-glassmorphic .action-card,
+.theme-glassmorphic .results,
+.theme-glassmorphic .auth-card {
+    background: var(--surface);
+    backdrop-filter: var(--backdrop-blur);
+    -webkit-backdrop-filter: var(--backdrop-blur);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.theme-glassmorphic .drop-zone {
+    background: rgba(99, 102, 241, 0.05);
+    border: 2px dashed rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+}
+
+.theme-glassmorphic button {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.theme-glassmorphic .action-card:hover {
+    background: var(--surface-hover);
+    transform: translateY(-4px) scale(1.02);
+}
+
+/* Glassmorphic gradient orbs */
+.theme-glassmorphic::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(34, 197, 94, 0.1) 0%, transparent 50%);
+    animation: float 20s ease-in-out infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+@keyframes float {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.1); }
+}
+
+/* Theme-specific adjustments for Neubrutalism */
+.theme-neubrutalism .header {
+    background: var(--surface);
+    border: var(--border-width) solid var(--border);
+    box-shadow: var(--box-shadow);
+    margin: 1rem;
+}
+
+.theme-neubrutalism .upload-area,
+.theme-neubrutalism .auth-card {
+    background: var(--surface);
+    border: var(--border-width) solid var(--border);
+    box-shadow: var(--box-shadow-lg);
+    border-radius: 0;
+}
+
+.theme-neubrutalism .action-card {
+    border: var(--border-width) solid var(--border);
+    box-shadow: var(--box-shadow-sm);
+    border-radius: 0;
+}
+
+.theme-neubrutalism .action-card:nth-child(1) {
+    background: #FFE5F1;
+}
+
+.theme-neubrutalism .action-card:nth-child(2) {
+    background: #E5F1FF;
+}
+
+.theme-neubrutalism .action-card:nth-child(3) {
+    background: #FFFBE5;
+}
+
+.theme-neubrutalism .action-card:nth-child(4) {
+    background: #E5FFE5;
+}
+
+.theme-neubrutalism .action-card:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: var(--box-shadow-lg);
+}
+
+.theme-neubrutalism .drop-zone {
+    border: var(--border-width) dashed var(--border);
+    background: linear-gradient(45deg, #FFE5F1 25%, transparent 25%, transparent 75%, #FFE5F1 75%, #FFE5F1),
+                linear-gradient(45deg, #FFE5F1 25%, transparent 25%, transparent 75%, #FFE5F1 75%, #FFE5F1);
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+}
+
+.theme-neubrutalism button {
+    background: var(--accent);
+    color: white;
+    border: var(--border-width) solid var(--border);
+    box-shadow: var(--box-shadow-sm);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.theme-neubrutalism button:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--box-shadow);
+}
+
+.theme-neubrutalism button:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--border);
+}
+
+/* Theme Selector Styles */
+.theme-selector {
+    position: relative;
+    display: inline-block;
+}
+
+.theme-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 200px;
+}
+
+.theme-brutalist .theme-dropdown {
+    border-radius: 0;
+    box-shadow: none;
+    border: 2px solid var(--border);
+}
+
+.theme-neubrutalism .theme-dropdown {
+    border-radius: 0;
+    border: 3px solid var(--border);
+    box-shadow: 4px 4px 0 var(--border);
+}
+
+.theme-glassmorphic .theme-dropdown {
+    backdrop-filter: var(--backdrop-blur);
+    -webkit-backdrop-filter: var(--backdrop-blur);
+}
+
+.theme-dropdown.show {
+    display: block;
+}
+
+.theme-option {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.theme-option:last-child {
+    border-bottom: none;
+}
+
+.theme-option:hover {
+    background: var(--surface-hover);
+}
+
+.theme-option.active {
+    background: var(--accent);
+    color: white;
+}
+
+.theme-option .theme-preview {
+    width: 24px;
+    height: 24px;
+    border: 2px solid currentColor;
+    border-radius: 4px;
+}
+
+.theme-selector-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.theme-brutalist .theme-selector-btn {
+    border-radius: 0;
+    border: 2px solid var(--border);
+    text-transform: uppercase;
+}
+
+.theme-neubrutalism .theme-selector-btn {
+    border-radius: 0;
+    border: 3px solid var(--border);
+    box-shadow: 3px 3px 0 var(--border);
+}
+
+.theme-glassmorphic .theme-selector-btn {
+    backdrop-filter: var(--backdrop-blur);
+    background: var(--surface);
+}
