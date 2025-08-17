@@ -80,6 +80,7 @@
             display: flex; /* Sidebar and main side by side */
             flex: 1;
             overflow: hidden;
+            height: calc(100vh - 60px); /* Full viewport minus header height */
         }
 
         .header h1 {
@@ -699,6 +700,8 @@
             /* Hide by default on mobile */
             transform: translateX(-100%);
             transition: transform 0.3s ease;
+            position: relative;
+            height: calc(100vh - 60px); /* Full viewport height minus header */
         }
         
         .sidebar.open {
@@ -753,6 +756,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            padding-bottom: 60px; /* Space for fixed Clear History button */
         }
         
         .sidebar-search {
@@ -878,6 +882,12 @@
         .sidebar-actions {
             padding: 1rem;
             border-top: 1px solid var(--border);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            z-index: 5;
         }
         
         .clear-history-btn {
@@ -1799,12 +1809,12 @@
                     <small>Upload a PDF to get started</small>
                 </div>
             </div>
-            <div class="sidebar-actions">
-                <button class="clear-history-btn" id="clearRecentFiles">
-                    <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
-                    Clear History
-                </button>
-            </div>
+        </div>
+        <div class="sidebar-actions">
+            <button class="clear-history-btn" id="clearRecentFiles">
+                <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                Clear History
+            </button>
         </div>
         </aside>
 
