@@ -6,6 +6,7 @@ const fs = require('fs').promises;
 const SimpleAuthHandler = require('./simple-auth-handler');
 const FirstRunSetup = require('./first-run-setup');
 const MCPManager = require('./mcp-manager');
+const { ensureMCPConfig } = require('./mcp-config-generator');
 
 // Add comprehensive logging
 const log = (message) => {
@@ -228,6 +229,10 @@ function createTray() {
 app.whenReady().then(async () => {
   log('App ready event fired');
   try {
+    // Generate MCP config with correct paths for this system
+    await ensureMCPConfig();
+    log('MCP config ensured');
+    
     // Check if local Gemini CLI is installed
     const isProduction = __dirname.includes('app.asar');
     log(`Production mode: ${isProduction}`);

@@ -13,10 +13,9 @@ release/
 *.dmg
 *.pkg
 
-# User credentials - NEVER commit these
-gemini-cli-local/.gemini/oauth_creds.json
-gemini-cli-local/.gemini/google_accounts.json
-gemini-cli-local/.gemini/adc.json
+# User credentials and config - NEVER commit these
+gemini-cli-local/.gemini/
+# This includes oauth_creds.json, google_accounts.json, adc.json, and mcp_servers.json
 
 # Temporary files  
 uploads/*.pdf

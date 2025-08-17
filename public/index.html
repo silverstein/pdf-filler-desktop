@@ -4394,6 +4394,32 @@
         let recentFiles = [];
         let sidebarOpen = false;
         
+        // Load recent files from localStorage
+        function loadRecentFilesFromStorage() {
+            try {
+                const stored = localStorage.getItem('recentFiles');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed)) {
+                        recentFiles = parsed;
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading recent files from localStorage:', error);
+            }
+            return false;
+        }
+        
+        // Save recent files to localStorage
+        function saveRecentFilesToStorage() {
+            try {
+                localStorage.setItem('recentFiles', JSON.stringify(recentFiles));
+            } catch (error) {
+                console.error('Error saving recent files to localStorage:', error);
+            }
+        }
+        
         // Initialize sidebar on page load
         document.addEventListener('DOMContentLoaded', function() {
             initializeSidebar();
@@ -4493,6 +4519,8 @@
                             await window.electronAPI.invoke('clear-recent-files');
                         }
                         recentFiles = [];
+                        // Clear from localStorage as well
+                        localStorage.removeItem('recentFiles');
                         updateRecentFilesList();
                     } catch (error) {
                         console.error('Error clearing recent files:', error);
@@ -4514,12 +4542,21 @@
         async function loadRecentFiles() {
             try {
                 if (window.electronAPI) {
+                    // Try to get from Electron first
                     recentFiles = await window.electronAPI.invoke('get-recent-files') || [];
-                    updateRecentFilesList();
+                    // If empty, try localStorage as fallback
+                    if (recentFiles.length === 0) {
+                        loadRecentFilesFromStorage();
+                    }
+                } else {
+                    // No Electron API, use localStorage
+                    loadRecentFilesFromStorage();
                 }
+                updateRecentFilesList();
             } catch (error) {
                 console.error('Error loading recent files:', error);
-                recentFiles = [];
+                // Fallback to localStorage
+                loadRecentFilesFromStorage();
                 updateRecentFilesList();
             }
         }
@@ -4548,6 +4585,9 @@
                     // Note: The Electron main process handles persistence
                     // We just update our local array and UI
                 }
+                
+                // Always save to localStorage as well (for persistence)
+                saveRecentFilesToStorage();
                 
                 // Update UI
                 updateRecentFilesList();
@@ -4654,16 +4694,16 @@
                     lucide.createIcons();
                 }
                 
-                // Trigger the action
+                // Trigger the action using processFile function
                 switch (action) {
                     case 'analyze':
-                        await handleAction('analyze');
+                        await processFile('analyze');
                         break;
                     case 'extract':
-                        await handleAction('extract');
+                        await processFile('extract');
                         break;
                     case 'fill':
-                        await handleAction('fill');
+                        await processFile('fill');
                         break;
                     default:
                         console.warn('Unknown action:', action);

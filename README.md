@@ -88,7 +88,7 @@ The desktop app provides:
 
 ```bash
 # Run with DevTools open
-DEBUG=1 npm start
+DEBUG=1 npm **start**
 ```
 
 ### API Endpoints (For Developers)

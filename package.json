@@ -51,6 +51,7 @@
       "src/**/*",
       "public/**/*",
       "gemini-cli-local/**/*",
+      "!gemini-cli-local/.gemini/**/*",
       "assets/**/*",
       "scripts/**/*",
       "uploads/.gitkeep",
