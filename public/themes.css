@@ -47,6 +47,26 @@
     --warning: #FFD700;
 }
 
+/* Fix icon visibility in brutalist dark mode */
+.theme-brutalist [data-lucide],
+.theme-brutalist i[data-lucide] {
+    stroke: currentColor !important;
+}
+
+.theme-brutalist.dark-mode [data-lucide],
+.theme-brutalist.dark-mode i[data-lucide] {
+    stroke: var(--text) !important;
+    color: var(--text) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    .theme-brutalist [data-lucide],
+    .theme-brutalist i[data-lucide] {
+        stroke: var(--text) !important;
+        color: var(--text) !important;
+    }
+}
+
 
 /* ============================================
    THEME 3: GLASSMORPHIC DARK
@@ -270,15 +290,28 @@
     letter-spacing: -0.011em;
 }
 
-/* Ensure all icons use the theme's text color */
-.theme-mono svg {
-    color: var(--text) !important;
-    stroke: currentColor !important;
-    fill: none !important;
+/* Fix Lucide icons for Mono theme - ONLY strokes, NO fills */
+.theme-mono [data-lucide] {
+    stroke: var(--text);
+    fill: none;
+    color: var(--text);
 }
 
-.theme-mono [data-lucide] {
-    color: var(--text) !important;
+.theme-mono svg {
+    stroke: var(--text);
+    fill: none;
+}
+
+/* Remove any background from icon containers */
+.theme-mono i[data-lucide] {
+    background: none !important;
+    background-color: transparent !important;
+}
+
+.theme-mono .lucide {
+    background: none !important;
+    fill: none !important;
+    stroke: var(--text) !important;
 }
 
 .theme-mono .header {
@@ -321,8 +354,6 @@
 }
 
 .theme-mono button {
-    background: var(--accent);
-    color: var(--bg);
     border: 1px solid var(--border) !important;
     border-radius: 0 !important;
     font-weight: 500;
@@ -332,10 +363,6 @@
     transition: all 0.15s ease;
 }
 
-.theme-mono button:hover {
-    background: var(--bg);
-    color: var(--accent);
-}
 
 .theme-mono .copy-btn {
     background: var(--surface);

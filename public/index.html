@@ -20,6 +20,31 @@
         code, pre {
             font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
         }
+        
+        /* Fix for Lucide icons - ensure they're not solid blocks */
+        i[data-lucide] {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background: transparent !important;
+        }
+        
+        /* When Lucide replaces with SVG */
+        svg.lucide {
+            fill: none !important;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        /* Mono theme specific icon fixes */
+        .theme-mono i[data-lucide],
+        .theme-mono svg.lucide {
+            background: transparent !important;
+            fill: none !important;
+            stroke: var(--text) !important;
+        }
     </style>
     
     <style>
@@ -48,6 +73,7 @@
             justify-content: space-between;
             align-items: center;
             transition: all 0.3s ease;
+            position: relative;
         }
 
         .app-layout {
@@ -62,6 +88,23 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
+        }
+        
+        /* Desktop sidebar toggle in header */
+        .header-sidebar-toggle {
+            background: transparent;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+            margin-right: 1rem;
+        }
+        
+        .header-sidebar-toggle:hover {
+            background: var(--surface-hover);
+            color: var(--text-primary);
         }
 
         .logo-icon {
@@ -718,11 +761,10 @@
             border-bottom: 1px solid var(--border);
         }
         
-        .sidebar-search i {
+        .sidebar-search svg {
             position: absolute;
-            left: calc(1rem + 12px); /* Account for container padding */
-            top: 50%;
-            transform: translateY(-50%);
+            left: 1.8rem; /* Positioned to be centered in the input's left padding */
+            top: 1.8rem; /* Position inside the input field */
             opacity: 0.5;
             z-index: 1;
             pointer-events: none;
@@ -960,6 +1002,15 @@
                 position: relative;
             }
             
+            /* Hide header toggle on mobile, show mobile floating button */
+            .header-sidebar-toggle {
+                display: none !important;
+            }
+            
+            .mobile-sidebar-toggle {
+                display: flex !important;
+            }
+            
             .sidebar {
                 position: absolute;
                 width: 280px;
@@ -1018,14 +1069,14 @@
                 transform: translateX(-100%);
             }
             
-            /* Show toggle button when sidebar is collapsed on desktop */
-            .sidebar.collapsed ~ .mobile-sidebar-toggle,
-            .main-content.sidebar-collapsed ~ .mobile-sidebar-toggle {
-                display: flex !important;
+            /* Hide mobile toggle on desktop - we use header toggle instead */
+            .mobile-sidebar-toggle {
+                display: none !important;
             }
             
-            .mobile-sidebar-toggle {
-                display: none; /* Hide mobile toggle on desktop when sidebar is open */
+            /* Show header toggle on desktop */
+            .header-sidebar-toggle {
+                display: flex;
             }
         }
         
@@ -1682,12 +1733,17 @@
 <body class="theme-brutalist">
     <!-- Header should be FIRST and FULL WIDTH -->
     <header class="header">
-        <h1>
-            <div class="logo-icon">
-                <i data-lucide="file-text" style="width: 20px; height: 20px;"></i>
-            </div>
-            <span>PDF Filler</span>
-        </h1>
+        <div style="display: flex; align-items: center;">
+            <button class="header-sidebar-toggle" id="headerSidebarToggle" aria-label="Toggle sidebar">
+                <i data-lucide="panel-left-close" style="width: 20px; height: 20px;"></i>
+            </button>
+            <h1>
+                <div class="logo-icon">
+                    <i data-lucide="file-text" style="width: 20px; height: 20px;"></i>
+                </div>
+                <span>PDF Filler</span>
+            </h1>
+        </div>
         <div class="header-controls">
             <div class="status">
                 <div class="account-dropdown">
@@ -4311,12 +4367,26 @@
             }
             
             updateSidebarState();
+            updateHeaderToggleIcon();
             
             // Toggle sidebar
             function toggleSidebar() {
                 sidebarOpen = !sidebarOpen;
                 updateSidebarState();
                 saveSidebarState();
+                updateHeaderToggleIcon();
+            }
+            
+            // Update header toggle icon based on sidebar state
+            function updateHeaderToggleIcon() {
+                const headerToggle = document.getElementById('headerSidebarToggle');
+                if (headerToggle) {
+                    const icon = headerToggle.querySelector('i');
+                    if (icon) {
+                        icon.setAttribute('data-lucide', sidebarOpen ? 'panel-left-close' : 'panel-left-open');
+                        lucide.replace(); // Re-render the icon
+                    }
+                }
             }
             
             // Update sidebar visual state
@@ -4349,6 +4419,12 @@
             // Event listeners
             sidebarToggle.addEventListener('click', toggleSidebar);
             mobileSidebarToggle.addEventListener('click', toggleSidebar);
+            
+            // Add header toggle listener
+            const headerSidebarToggle = document.getElementById('headerSidebarToggle');
+            if (headerSidebarToggle) {
+                headerSidebarToggle.addEventListener('click', toggleSidebar);
+            }
             sidebarOverlay.addEventListener('click', () => {
                 if (window.innerWidth <= 768) {
                     sidebarOpen = false;
