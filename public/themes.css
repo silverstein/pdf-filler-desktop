@@ -354,6 +354,8 @@
 }
 
 .theme-mono button {
+    background: var(--surface);
+    color: var(--text);
     border: 1px solid var(--border) !important;
     border-radius: 0 !important;
     font-weight: 500;
@@ -362,7 +364,9 @@
     font-size: 14px;
     transition: all 0.15s ease;
 }
-
+.theme-mono .btn-primary svg {
+    color: var(--bg);
+}
 
 .theme-mono .copy-btn {
     background: var(--surface);
@@ -454,6 +458,28 @@
 .theme-mono .icon-btn:hover i {
     color: var(--bg) !important;
     stroke: var(--bg) !important;
+}
+
+/* Fix sidebar toggle button in Mono theme */
+.theme-mono .sidebar-toggle-btn {
+    background: transparent !important;
+    color: var(--text) !important;
+    border: none !important;
+}
+
+.theme-mono .sidebar-toggle-btn:hover {
+    background: var(--surface-hover) !important;
+}
+
+.theme-mono .sidebar-toggle-btn svg,
+.theme-mono .sidebar-toggle-btn i {
+    stroke: var(--text) !important;
+    fill: none !important;
+}
+
+.theme-mono .sidebar-toggle-btn:hover svg,
+.theme-mono .sidebar-toggle-btn:hover i {
+    stroke: var(--text) !important;
 }
 
 
