@@ -4,22 +4,29 @@ A native desktop application for PDF form filling and analysis, powered by Googl
 
 ## ✨ Current Features
 
+### Core Capabilities
 - 🖥️ **Native Desktop App** - System tray integration, works offline
 - 📂 **Native File Selection** - No uploads needed, works with files anywhere on your system
 - 📄 **Analyze PDFs** - Extract structure, form fields, and content
 - 📊 **Extract Data** - Convert PDF content to structured JSON
-- ✅ **Validate Forms** - Check for missing required fields
-- 🎨 **Multiple Themes** - Dark, Light, Ocean, Forest, and more
-- 📝 **Recent Files** - Quick access to recently processed PDFs
+- 📖 **Read Full Text** - Extract complete text content from PDFs
 - 🔒 **Privacy First** - All processing happens locally
+
+### Form Processing
+- ✏️ **Fill Forms** - Write data back to PDFs with support for text, checkboxes, dropdowns, and more
+- ✅ **Validate Forms** - Check for missing required fields
+- 🔐 **Password Support** - Handle encrypted and password-protected PDFs
+
+### Advanced Features
+- 🔄 **Bulk Processing** - Process multiple PDFs from CSV data with template-based filling
+- 👤 **Profile System** - Save and reuse common form data with secure encryption
+- 📝 **Recent Files** - Quick access to recently processed PDFs
+- 🎨 **Multiple Themes** - Dark, Light, Ocean, Forest, and more
 
 ## 🚧 Coming Soon
 
-- ✏️ **Fill Forms** - Actually write data back to PDFs
-- 🔐 **Password Support** - Handle encrypted PDFs
-- 🔄 **Bulk Processing** - Process multiple PDFs from CSV data
-- 👤 **Profile System** - Save and reuse common form data
 - 📤 **Export to CSV** - Extract data from multiple PDFs to spreadsheet
+- 👁️ **OCR Support** - Extract text from scanned PDFs using vision capabilities
 
 ## 🚀 Quick Start
 
@@ -230,11 +237,13 @@ Contributions are welcome! Check out [FEATURES.md](FEATURES.md) for the roadmap.
 
 ### Priority Features Needed
 
-- [ ] **PDF Form Filling** - Actually write data back to PDFs using pdf-lib
-- [ ] **Password Support** - Handle encrypted PDFs
-- [ ] **Bulk CSV Processing** - Fill multiple PDFs from spreadsheet data
-- [ ] **Profile System** - Save and reuse common form data
-- [ ] **Full Text Extraction** - Get all text, not just form fields
+- [x] **PDF Form Filling** - ✅ DONE - Full implementation with pdf-lib
+- [x] **Password Support** - ✅ DONE - Complete support for encrypted PDFs
+- [x] **Bulk CSV Processing** - ✅ DONE - Template-based bulk filling from spreadsheets
+- [x] **Profile System** - ✅ DONE - Secure profile storage with encryption
+- [x] **Full Text Extraction** - ✅ DONE - Complete text extraction beyond form fields
+- [ ] **Export to CSV** - Extract data from multiple PDFs to spreadsheet
+- [ ] **OCR Support** - Extract text from scanned PDFs
 
 ### Future Enhancements
 
