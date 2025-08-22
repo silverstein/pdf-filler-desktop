@@ -2,17 +2,24 @@
   "name": "pdf-filler-desktop",
   "version": "1.0.0",
   "description": "Free PDF processing powered by Gemini CLI",
-  "main": "src/electron.js",
+  "main": "dist/electron.js",
   "scripts": {
-    "start": "electron src/electron.js",
-    "server": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "electron": "electron src/electron.js",
-    "build": "electron-builder && node scripts/post-build.js",
+    "build:ts": "tsc",
+    "watch:ts": "tsc -w",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean && npm run build:ts",
+    "start": "npm run build:ts && electron dist/electron.js",
+    "start:dev": "npm run build:ts && electron dist/electron.js",
+    "server": "npm run build:ts && node dist/server.js",
+    "server:dev": "ts-node src/server.ts",
+    "dev": "nodemon --watch src --ext ts --exec 'npm run build:ts && node dist/server.js'",
+    "electron": "npm run build:ts && electron dist/electron.js",
+    "build": "npm run prebuild && electron-builder && node scripts/post-build.js",
     "setup": "node scripts/setup.js",
     "postinstall": "npm install @google/gemini-cli --prefix ./gemini-cli-local",
     "gemini": "./gemini-cli-local/node_modules/.bin/gemini",
-    "gemini-auth": "./gemini-cli-local/node_modules/.bin/gemini auth login"
+    "gemini-auth": "./gemini-cli-local/node_modules/.bin/gemini auth login",
+    "test:ai": "ts-node src/test-ai-service.ts"
   },
   "keywords": [
     "pdf",
@@ -24,6 +31,8 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/server-filesystem": "^2025.7.29",
+    "ai": "^5.0.22",
+    "ai-sdk-provider-gemini-cli": "^1.1.0",
     "archiver": "^7.0.1",
     "cors": "^2.8.5",
     "csv-parse": "^6.1.0",
@@ -33,13 +42,21 @@
     "multer": "^1.4.5-lts.1",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
-    "pdfjs-dist": "^5.4.54"
+    "pdfjs-dist": "^5.4.54",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.3.0",
+    "@types/pdf-parse": "^1.1.5",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "fs-extra": "^11.3.1",
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
   },
   "build": {
     "appId": "com.gemini.pdffiller",
@@ -48,7 +65,7 @@
       "output": "dist"
     },
     "files": [
-      "src/**/*",
+      "dist/**/*",
       "public/**/*",
       "gemini-cli-local/**/*",
       "!gemini-cli-local/.gemini/**/*",
