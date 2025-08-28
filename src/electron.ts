@@ -12,8 +12,8 @@ import {
 import path from 'path';
 import { spawn, fork, ChildProcess } from 'child_process';
 import { promises as fs } from 'fs';
-// Use simple auth handler for now (node-pty has build issues)
-import SimpleAuthHandler from './simple-auth-handler';
+// Use terminal auth handler (gemini CLI requires interactive Terminal)
+import TerminalAuthHandler from './terminal-auth-handler';
 import FirstRunSetup from './first-run-setup';
 import MCPManager from './mcp-manager';
 import { ensureMCPConfig } from './mcp-config-generator';
@@ -27,6 +27,7 @@ interface ServerStatus {
 
 interface AuthCheckResult {
   authenticated: boolean;
+  email?: string;
   error?: string;
 }
 
@@ -181,8 +182,34 @@ function createTray(): void {
   });
 }
 
-// Handle file selection
+// Handle file selection (with both names for compatibility)
 ipcMain.handle('select-file', async (event: IpcMainInvokeEvent, options: any = {}) => {
+  log('File selection requested');
+  
+  const defaultOptions = {
+    title: 'Select File',
+    filters: [
+      { name: 'All Files', extensions: ['*'] }
+    ],
+    properties: ['openFile']
+  };
+  
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    ...defaultOptions,
+    ...options
+  });
+  
+  if (!result.canceled && result.filePaths.length > 0) {
+    log(`File selected: ${result.filePaths[0]}`);
+    return { success: true, filePath: result.filePaths[0] };
+  }
+  
+  log('File selection cancelled');
+  return { success: false };
+});
+
+// Also register as select-pdf for preload compatibility
+ipcMain.handle('select-pdf', async (event: IpcMainInvokeEvent) => {
   log('File selection requested');
   
   const defaultOptions = {
@@ -191,12 +218,12 @@ ipcMain.handle('select-file', async (event: IpcMainInvokeEvent, options: any = {
       { name: 'PDF Files', extensions: ['pdf'] },
       { name: 'All Files', extensions: ['*'] }
     ],
-    properties: ['openFile']
+    properties: ['openFile' as const]
   };
   
   const result = await dialog.showOpenDialog(
     mainWindow!,
-    { ...defaultOptions, ...options }
+    defaultOptions
   );
   
   if (!result.canceled && result.filePaths.length > 0) {
@@ -207,13 +234,38 @@ ipcMain.handle('select-file', async (event: IpcMainInvokeEvent, options: any = {
   return null;
 });
 
-// Handle save file dialog
+// Handle save file dialog (with both names for compatibility)
 ipcMain.handle('save-file', async (event: IpcMainInvokeEvent, options: any = {}) => {
   log('Save file dialog requested');
   
   const defaultOptions = {
+    title: 'Save File',
+    filters: [
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  };
+  
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    ...defaultOptions,
+    ...options
+  });
+  
+  if (!result.canceled && result.filePath) {
+    log(`Save path selected: ${result.filePath}`);
+    return { success: true, filePath: result.filePath };
+  }
+  
+  log('Save dialog cancelled');
+  return { success: false };
+});
+
+// Also register as save-pdf for preload compatibility
+ipcMain.handle('save-pdf', async (event: IpcMainInvokeEvent, defaultName?: string) => {
+  log('Save file dialog requested');
+  
+  const defaultOptions = {
     title: 'Save PDF File',
-    defaultPath: 'filled-form.pdf',
+    defaultPath: defaultName || 'filled-form.pdf',
     filters: [
       { name: 'PDF Files', extensions: ['pdf'] },
       { name: 'All Files', extensions: ['*'] }
@@ -222,7 +274,7 @@ ipcMain.handle('save-file', async (event: IpcMainInvokeEvent, options: any = {})
   
   const result = await dialog.showSaveDialog(
     mainWindow!,
-    { ...defaultOptions, ...options }
+    defaultOptions
   );
   
   if (!result.canceled && result.filePath) {
@@ -276,26 +328,66 @@ ipcMain.handle('select-directory', async (event: IpcMainInvokeEvent, options: an
   return null;
 });
 
-// Handle auth check
+// Handle auth check (with both names for compatibility)
 ipcMain.handle('check-auth', async (): Promise<AuthCheckResult> => {
   try {
     log('Checking authentication status...');
-    const authHandler = new SimpleAuthHandler();
-    const isAuthenticated = await authHandler.checkExistingAuth();
-    log(`Authentication status: ${isAuthenticated}`);
-    return { authenticated: isAuthenticated };
+    const authHandler = new TerminalAuthHandler();
+    const status = await authHandler.checkAuthStatus();
+    return { 
+      authenticated: status.authenticated,
+      email: status.email 
+    };
   } catch (error: any) {
     log(`Auth check error: ${error.message}`);
     return { authenticated: false, error: error.message };
   }
 });
 
-// Handle auth flow
+// Also register as check-auth-status for preload compatibility
+ipcMain.handle('check-auth-status', async (): Promise<AuthCheckResult> => {
+  try {
+    log('Checking authentication status...');
+    const authHandler = new TerminalAuthHandler();
+    const status = await authHandler.checkAuthStatus();
+    log(`Authentication status: ${status.authenticated}, email: ${status.email}`);
+    return { 
+      authenticated: status.authenticated,
+      email: status.email 
+    };
+  } catch (error: any) {
+    log(`Auth check error: ${error.message}`);
+    return { authenticated: false, error: error.message };
+  }
+});
+
+// Handle auth flow (with both names for compatibility)
 ipcMain.handle('start-auth', async (): Promise<{ success: boolean; error?: string }> => {
   try {
     log('Starting authentication flow...');
-    const authHandler = new SimpleAuthHandler();
-    const result = await authHandler.startAuth();
+    const authHandler = new TerminalAuthHandler();
+    const result = await authHandler.startAuth(mainWindow);
+    if (result.success) {
+      log('Authentication flow started successfully');
+      mainWindow?.webContents.send('auth-success');
+    } else {
+      log(`Authentication flow failed: ${result.error}`);
+      mainWindow?.webContents.send('auth-failure', result.error);
+    }
+    return result;
+  } catch (error: any) {
+    log(`Auth start error: ${error.message}`);
+    mainWindow?.webContents.send('auth-failure', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+// Also register as start-google-auth for preload compatibility
+ipcMain.handle('start-google-auth', async (): Promise<{ success: boolean; error?: string }> => {
+  try {
+    log('Starting authentication flow...');
+    const authHandler = new TerminalAuthHandler();
+    const result = await authHandler.startAuth(mainWindow);
     
     if (result.success) {
       log('Authentication successful');
@@ -346,6 +438,57 @@ ipcMain.handle('get-app-info', async () => {
     name: app.getName(),
     userData: app.getPath('userData'),
     isPackaged: app.isPackaged
+  };
+});
+
+// Handle clear auth
+ipcMain.handle('clear-auth', async (): Promise<{ success: boolean; error?: string }> => {
+  try {
+    log('Clearing authentication...');
+    const authHandler = new TerminalAuthHandler();
+    await authHandler.clearAuth();
+    return { success: true };
+  } catch (error: any) {
+    log(`Clear auth error: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get user email
+ipcMain.handle('get-user-email', async (): Promise<string | null> => {
+  try {
+    const authHandler = new TerminalAuthHandler();
+    const email = await authHandler.getUserEmail();
+    log(`User email: ${email}`);
+    return email;
+  } catch (error: any) {
+    log(`Get email error: ${error.message}`);
+    return null;
+  }
+});
+
+// Handle recent files operations
+ipcMain.handle('get-recent-files', async (): Promise<string[]> => {
+  // For now, return empty array - can be implemented later
+  return [];
+});
+
+ipcMain.handle('clear-recent-files', async (): Promise<void> => {
+  // Implementation can be added later
+  log('Clear recent files requested');
+});
+
+ipcMain.handle('remove-recent-file', async (event: IpcMainInvokeEvent, filePath: string): Promise<void> => {
+  // Implementation can be added later
+  log(`Remove recent file requested: ${filePath}`);
+});
+
+// Handle rate limits
+ipcMain.handle('get-rate-limits', async () => {
+  return {
+    requestsPerMinute: 60,
+    requestsPerDay: 1000,
+    tokensPerRequest: 1000000
   };
 });
 

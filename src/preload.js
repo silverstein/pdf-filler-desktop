@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startGoogleAuth: () => ipcRenderer.invoke('start-google-auth'),
   clearAuth: () => ipcRenderer.invoke('clear-auth'),
   getRateLimits: () => ipcRenderer.invoke('get-rate-limits'),
+  getUserEmail: () => ipcRenderer.invoke('get-user-email'),
   
   // File methods (NEW)
   selectPDF: () => ipcRenderer.invoke('select-pdf'),

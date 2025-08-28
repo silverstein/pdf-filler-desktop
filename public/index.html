@@ -503,6 +503,130 @@
             text-align: center;
         }
 
+        /* Intelligence Card Styles */
+        .intelligence-card {
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            border-radius: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            animation: slideIn 0.3s ease;
+        }
+
+        .intelligence-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .intelligence-header h3 {
+            margin: 0;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .intelligence-refresh {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .intelligence-refresh:hover {
+            background: var(--surface-hover);
+            color: var(--primary);
+        }
+
+        .intelligence-loading {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--surface-hover);
+            border-top: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .intelligence-summary {
+            background: var(--background);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .intelligence-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-right: 0.5rem;
+        }
+
+        .badge-critical {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .intelligence-insights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .insight-card {
+            background: var(--background);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .insight-card h5 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        .insight-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .insight-list li {
+            padding: 0.5rem 0;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .completeness-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--surface-hover);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .completeness-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.5s ease;
+        }
+
         .spinner {
             width: 50px;
             height: 50px;
@@ -1952,6 +2076,25 @@
                 <input type="file" id="fileInput" class="file-input" accept=".pdf">
             </div>
 
+            <!-- Intelligence Card -->
+            <div class="intelligence-card" id="intelligenceCard" style="display: none;">
+                <div class="intelligence-header">
+                    <h3>
+                        <i data-lucide="sparkles" style="width: 20px; height: 20px;"></i>
+                        Document Intelligence
+                    </h3>
+                    <button class="intelligence-refresh" onclick="refreshIntelligence()">
+                        <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                    </button>
+                </div>
+                <div class="intelligence-content" id="intelligenceContent">
+                    <div class="intelligence-loading">
+                        <div class="spinner-small"></div>
+                        <span>Analyzing document...</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="actions">
                 <div class="action-card" data-action="analyze">
                     <h3><i data-lucide="search" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Analyze</h3>
@@ -2604,11 +2747,21 @@
                 isAuthenticated = authStatus.authenticated;
                 
                 if (isAuthenticated) {
+                    // Get user email separately if not in authStatus
+                    let userEmail = authStatus.email;
+                    if (!userEmail || userEmail === 'undefined') {
+                        try {
+                            userEmail = await window.electronAPI.getUserEmail();
+                        } catch {
+                            userEmail = 'authenticated';
+                        }
+                    }
+                    
                     document.getElementById('authSection').style.display = 'none';
                     document.getElementById('mainApp').style.display = 'block';
                     document.getElementById('geminiStatus').style.background = 'var(--success)';
-                    document.getElementById('geminiStatusText').textContent = `${authStatus.email}`;
-                    document.getElementById('accountEmail').innerHTML = `<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>${authStatus.email}</span>`;
+                    document.getElementById('geminiStatusText').textContent = userEmail || 'Connected';
+                    document.getElementById('accountEmail').innerHTML = `<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>${userEmail || 'Connected'}</span>`;
                     lucide.createIcons();
                 } else {
                     document.getElementById('authSection').style.display = 'block';
@@ -2674,7 +2827,7 @@
                 const result = await window.electronAPI.startGoogleAuth();
                 
                 if (result.success) {
-                    signInBtn.textContent = 'Complete sign-in in Terminal and browser...';
+                    signInBtn.textContent = 'Complete sign-in in Terminal...';
                     
                     const authCheckInterval = setInterval(async () => {
                         const authStatus = await window.electronAPI.checkAuthStatus();
@@ -2820,10 +2973,126 @@
             `;
             lucide.createIcons();
             
+            // Fetch intelligence for the native file
+            fetchIntelligence(filePath);
+            
             // Scroll to show actions
             setTimeout(() => {
                 document.querySelector('.actions').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }, 300);
+        }
+        
+        // Intelligence Functions
+        async function fetchIntelligence(filePath) {
+            const card = document.getElementById('intelligenceCard');
+            const content = document.getElementById('intelligenceContent');
+            
+            // Show the card with loading state
+            card.style.display = 'block';
+            content.innerHTML = `
+                <div class="intelligence-loading">
+                    <div class="spinner-small"></div>
+                    <span>Analyzing document with AI...</span>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/intelligence-local', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filePath })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayIntelligence(data);
+                } else {
+                    throw new Error('Failed to fetch intelligence');
+                }
+            } catch (error) {
+                console.error('Intelligence error:', error);
+                content.innerHTML = `
+                    <div style="color: var(--text-secondary); text-align: center;">
+                        <p>Unable to analyze document at this time</p>
+                        <small>${error.message}</small>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayIntelligence(data) {
+            const content = document.getElementById('intelligenceContent');
+            const { summary, insights, metadata } = data;
+            
+            // Determine badge class based on importance
+            const badgeClass = `badge-${summary.importance}`;
+            
+            content.innerHTML = `
+                <div class="intelligence-summary">
+                    <h4>${summary.title}</h4>
+                    <p>${summary.description}</p>
+                    <div style="margin-top: 0.5rem;">
+                        <span class="intelligence-badge ${badgeClass}">${summary.importance.toUpperCase()}</span>
+                        <span class="intelligence-badge" style="background: var(--surface-hover); color: var(--text-secondary);">
+                            ${summary.category.toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+                
+                ${insights.completeness > 0 ? `
+                <div style="margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>Document Completeness</span>
+                        <strong>${insights.completeness}%</strong>
+                    </div>
+                    <div class="completeness-bar">
+                        <div class="completeness-fill" style="width: ${insights.completeness}%"></div>
+                    </div>
+                </div>
+                ` : ''}
+                
+                <div class="intelligence-insights">
+                    ${insights.keyInsights && insights.keyInsights.length > 0 ? `
+                    <div class="insight-card">
+                        <h5>Key Insights</h5>
+                        <ul class="insight-list">
+                            ${insights.keyInsights.map(insight => `<li>${insight}</li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                    
+                    ${insights.nextActions && insights.nextActions.length > 0 ? `
+                    <div class="insight-card">
+                        <h5>Recommended Actions</h5>
+                        <ul class="insight-list">
+                            ${insights.nextActions.map(action => `<li>${action}</li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                    
+                    ${summary.processingTips && summary.processingTips.length > 0 ? `
+                    <div class="insight-card">
+                        <h5>Processing Tips</h5>
+                        <ul class="insight-list">
+                            ${summary.processingTips.map(tip => `<li>${tip}</li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-secondary);">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Analysis confidence: ${metadata.confidence}%</span>
+                        <span>Processing time: ${(metadata.processingTime / 1000).toFixed(1)}s</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function refreshIntelligence() {
+            if (selectedFile && selectedFileIsPath) {
+                fetchIntelligence(selectedFile);
+            }
         }
         
         window.resetUpload = function() {
@@ -2831,6 +3100,9 @@
             uploadArea.classList.remove('collapsed');
             selectedFile = null;
             selectedFileIsPath = false;
+            
+            // Hide intelligence card
+            document.getElementById('intelligenceCard').style.display = 'none';
             
             const dropZone = document.getElementById('dropZone');
             dropZone.classList.remove('compact');

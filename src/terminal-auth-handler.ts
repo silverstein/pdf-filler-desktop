@@ -13,34 +13,47 @@ interface AuthResult {
   error?: string;
 }
 
-export class SimpleAuthHandler {
+export class TerminalAuthHandler {
   private localGeminiPath: string;
   private localGeminiHome: string;
   private credPath: string;
   private accountsPath: string;
 
   constructor() {
-    this.localGeminiPath = path.join(__dirname, '../gemini-cli-local/node_modules/.bin/gemini');
-    this.localGeminiHome = path.join(__dirname, '../gemini-cli-local');
+    // Fix path resolution for packaged app
+    const isDev = !app.isPackaged;
+    const basePath = isDev 
+      ? path.join(__dirname, '..')
+      : path.join(process.resourcesPath, 'app');
+    
+    this.localGeminiPath = path.join(basePath, 'gemini-cli-local', 'node_modules', '.bin', 'gemini');
+    this.localGeminiHome = path.join(basePath, 'gemini-cli-local');
     this.credPath = path.join(this.localGeminiHome, '.gemini', 'oauth_creds.json');
     this.accountsPath = path.join(this.localGeminiHome, '.gemini', 'google_accounts.json');
+    
+    console.log('TerminalAuthHandler initialized:');
+    console.log('  isDev:', isDev);
+    console.log('  basePath:', basePath);
+    console.log('  localGeminiPath:', this.localGeminiPath);
+    console.log('  localGeminiHome:', this.localGeminiHome);
   }
 
   async checkAuthStatus(): Promise<AuthStatus> {
     try {
       // Check if OAuth credentials exist in local Gemini home
-      const oauthPath = path.join(this.localGeminiHome, '.gemini', 'oauth_creds.json');
-      const accountsPath = path.join(this.localGeminiHome, '.gemini', 'google_accounts.json');
-      
-      await fs.access(oauthPath);
+      await fs.access(this.credPath);
       
       try {
-        const accounts = JSON.parse(await fs.readFile(accountsPath, 'utf8'));
+        const accounts = JSON.parse(await fs.readFile(this.accountsPath, 'utf8'));
+        const email = accounts.active || accounts.default || 
+                     (accounts.accounts && accounts.accounts[0]?.email) || 
+                     'authenticated';
         return {
           authenticated: true,
-          email: accounts.active || 'unknown'
+          email: email
         };
       } catch {
+        // Credentials exist but can't read account details
         return {
           authenticated: true,
           email: 'authenticated'
@@ -59,25 +72,28 @@ export class SimpleAuthHandler {
   }
 
   async startAuth(mainWindow?: any): Promise<AuthResult> {
-    // For macOS, we'll use AppleScript to open Terminal and run the auth command
-    // For Windows, we'll use PowerShell
-    // For Linux, we'll use xterm or gnome-terminal
+    console.log('Starting Terminal-based authentication...');
     
+    // For macOS, we'll use AppleScript to open Terminal and run gemini
+    // The gemini CLI will handle the OAuth flow when it detects no credentials
     const platform = process.platform;
     
     if (platform === 'darwin') {
-      // macOS - Use AppleScript to open Terminal
-      const command = `cd '${this.localGeminiHome}' && HOME='${this.localGeminiHome}' '${this.localGeminiPath}' auth login`;
+      // macOS - Use AppleScript to open Terminal with gemini command
+      // Just run gemini interactively - it will prompt for auth if needed
+      const command = `cd '${this.localGeminiHome}' && HOME='${this.localGeminiHome}' '${this.localGeminiPath}'`;
       const script = `tell application "Terminal" to do script "${command.replace(/"/g, '\\"')}"`;
       
       exec(`osascript -e '${script}'`, (error) => {
         if (error) {
           console.error('Failed to open Terminal:', error);
+        } else {
+          console.log('Terminal opened with gemini CLI');
         }
       });
     } else if (platform === 'win32') {
       // Windows - Use PowerShell/Command Prompt
-      const command = `cd /d "${this.localGeminiHome}" && set HOME="${this.localGeminiHome}" && "${this.localGeminiPath}" auth login`;
+      const command = `cd /d "${this.localGeminiHome}" && set HOME="${this.localGeminiHome}" && "${this.localGeminiPath}"`;
       exec(`start cmd /k "${command}"`, (error) => {
         if (error) {
           console.error('Failed to open Command Prompt:', error);
@@ -85,7 +101,7 @@ export class SimpleAuthHandler {
       });
     } else {
       // Linux - Try common terminal emulators
-      const command = `cd '${this.localGeminiHome}' && HOME='${this.localGeminiHome}' '${this.localGeminiPath}' auth login`;
+      const command = `cd '${this.localGeminiHome}' && HOME='${this.localGeminiHome}' '${this.localGeminiPath}'`;
       exec(`xterm -e "${command}" || gnome-terminal -- bash -c "${command}" || konsole -e "${command}"`, (error) => {
         if (error) {
           console.error('Failed to open terminal:', error);
@@ -104,9 +120,11 @@ export class SimpleAuthHandler {
         const status = await this.checkAuthStatus();
         if (status.authenticated) {
           clearInterval(checkInterval);
+          console.log('Authentication successful! Email:', status.email);
           resolve({ success: true });
         } else if (checkCount >= maxChecks) {
           clearInterval(checkInterval);
+          console.log('Authentication timeout');
           resolve({ success: false, error: 'Authentication timeout' });
         }
       }, 5000);
@@ -124,6 +142,11 @@ export class SimpleAuthHandler {
       throw error;
     }
   }
+
+  async getUserEmail(): Promise<string | null> {
+    const status = await this.checkAuthStatus();
+    return status.email || null;
+  }
 }
 
-export default SimpleAuthHandler;
+export default TerminalAuthHandler;

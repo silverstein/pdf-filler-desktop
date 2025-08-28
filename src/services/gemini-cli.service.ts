@@ -17,7 +17,7 @@ import {
 export class GeminiCLIService {
   private rateLimiter: RateLimiter;
   private currentModel: 'gemini-2.5-pro' | 'gemini-2.5-flash';
-  private useFlashFallback: boolean = true; // Temporarily force Flash due to quota limits
+  private useFlashFallback: boolean = true; // Default to Flash for most operations
   private geminiPath: string;
   private localGeminiHome: string;
 
@@ -88,14 +88,19 @@ export class GeminiCLIService {
     }
   }
 
-  private async callGemini(prompt: string, forceFlash: boolean = false): Promise<string> {
+  public async callGemini(prompt: string, forcePro: boolean = false): Promise<string> {
     await this.checkRateLimit();
     
     return new Promise((resolve, reject) => {
-      // Use Flash if in fallback mode or forced
-      const model = (this.useFlashFallback || forceFlash) ? 'gemini-2.5-flash' : this.currentModel;
+      // Force Pro for intelligence analysis, otherwise use Flash by default
+      let model: string;
+      if (forcePro) {
+        model = 'gemini-2.5-pro';
+      } else {
+        model = this.useFlashFallback ? 'gemini-2.5-flash' : this.currentModel;
+      }
       const args = ['-m', model, '-p', prompt];
-      console.log(`Using model: ${model} (fallback=${this.useFlashFallback})`);
+      console.log(`Using model: ${model} (forcePro=${forcePro}, fallback=${this.useFlashFallback})`);
       
       // Set up environment with local Gemini home for OAuth credentials
       const env = {
@@ -113,12 +118,12 @@ export class GeminiCLIService {
       let error = '';
       let timeout: NodeJS.Timeout;
       
-      // Set a 2-minute timeout
+      // Set a 5-minute timeout for complex PDF operations
       timeout = setTimeout(() => {
-        console.error('Gemini CLI timeout after 2 minutes');
+        console.error('Gemini CLI timeout after 5 minutes');
         gemini.kill();
         reject(new Error('Gemini CLI timeout - took too long to respond'));
-      }, 120000);
+      }, 300000);
       
       gemini.stdout.on('data', (data) => {
         output += data.toString();

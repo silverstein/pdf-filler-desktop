@@ -9,6 +9,7 @@ import { GeminiCLIService } from './services/gemini-cli.service';
 import { PDFService } from './services/pdf-service';
 import { CSVService } from './services/csv-service';
 import { ProfileService } from './services/profile-service';
+import { PDFIntelligenceService } from './services/pdf-intelligence.service';
 
 // Type definitions for request bodies
 interface AnalyzeLocalRequest {
@@ -133,6 +134,7 @@ const gemini = new GeminiCLIService();
 const pdfService = new PDFService();
 const csvService = new CSVService();
 const profileService = new ProfileService();
+const pdfIntelligence = new PDFIntelligenceService();
 console.log('Using simplified Gemini with direct file access');
 
 // Middleware
@@ -178,6 +180,69 @@ app.get('/api/health', async (req: Request, res: Response) => {
       'Ready to process PDFs!' : 
       'Please install Gemini CLI: https://github.com/google/generative-ai-docs'
   });
+});
+
+// ============================================
+// NEW: PDF Intelligence Endpoints
+// ============================================
+
+// Get quick intelligence about a PDF
+app.post('/api/intelligence-local', async (req: Request<{}, {}, { filePath: string }>, res: Response) => {
+  try {
+    const { filePath } = req.body;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'No file path provided' });
+    }
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Get intelligence analysis
+    const intelligence = await pdfIntelligence.getQuickIntelligence(filePath);
+    res.json(intelligence);
+  } catch (error: any) {
+    console.error('Intelligence analysis error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Classify document type
+app.post('/api/classify-local', async (req: Request<{}, {}, { filePath: string }>, res: Response) => {
+  try {
+    const { filePath } = req.body;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'No file path provided' });
+    }
+    
+    const documentType = await pdfIntelligence.classifyDocument(filePath);
+    res.json({ documentType });
+  } catch (error: any) {
+    console.error('Classification error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check document completeness
+app.post('/api/completeness-local', async (req: Request<{}, {}, { filePath: string }>, res: Response) => {
+  try {
+    const { filePath } = req.body;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'No file path provided' });
+    }
+    
+    const completeness = await pdfIntelligence.validateCompleteness(filePath);
+    res.json(completeness);
+  } catch (error: any) {
+    console.error('Completeness check error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // ============================================
@@ -1215,6 +1280,11 @@ app.post('/api/bulk', upload.fields([
 app.listen(PORT, () => {
   console.log(`🚀 PDF Filler Server running on http://localhost:${PORT}`);
   console.log('📋 Available endpoints:');
+  console.log('  🧠 Intelligence Features:');
+  console.log('  - POST /api/intelligence-local        - Get AI insights about PDF');
+  console.log('  - POST /api/classify-local            - Classify document type');
+  console.log('  - POST /api/completeness-local        - Check document completeness');
+  console.log('  📄 Core Features:');
   console.log('  - GET  /api/health                    - Check system status');
   console.log('  - POST /api/analyze                   - Analyze PDF structure');
   console.log('  - POST /api/extract                   - Extract data from PDF');
