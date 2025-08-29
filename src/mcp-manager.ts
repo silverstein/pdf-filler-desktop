@@ -7,7 +7,17 @@ export class MCPManager {
   private mcpConfigPath: string;
 
   constructor() {
-    this.mcpConfigPath = path.join(__dirname, '../gemini-cli-local/.gemini/mcp_servers.json');
+    // Check if we're in an ASAR archive (packaged app)
+    const isPackaged = __dirname.includes('app.asar');
+    
+    if (isPackaged) {
+      // In packaged app, files in asarUnpack are in app.asar.unpacked
+      const resourcesPath = path.join(__dirname, '..', '..');
+      const basePath = path.join(resourcesPath, 'app.asar.unpacked');
+      this.mcpConfigPath = path.join(basePath, 'gemini-cli-local', '.gemini', 'mcp_servers.json');
+    } else {
+      this.mcpConfigPath = path.join(__dirname, '../gemini-cli-local/.gemini/mcp_servers.json');
+    }
   }
 
   async initialize(): Promise<boolean> {

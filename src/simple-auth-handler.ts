@@ -20,8 +20,16 @@ export class SimpleAuthHandler {
   private accountsPath: string;
 
   constructor() {
-    this.localGeminiPath = path.join(__dirname, '../gemini-cli-local/node_modules/.bin/gemini');
-    this.localGeminiHome = path.join(__dirname, '../gemini-cli-local');
+    // Fix path resolution for packaged app
+    const isDev = !app.isPackaged;
+    
+    // In packaged app, files in asarUnpack are in app.asar.unpacked
+    const basePath = isDev 
+      ? path.join(__dirname, '..')
+      : path.join(process.resourcesPath, 'app.asar.unpacked');
+    
+    this.localGeminiPath = path.join(basePath, 'gemini-cli-local', 'node_modules', '.bin', 'gemini');
+    this.localGeminiHome = path.join(basePath, 'gemini-cli-local');
     this.credPath = path.join(this.localGeminiHome, '.gemini', 'oauth_creds.json');
     this.accountsPath = path.join(this.localGeminiHome, '.gemini', 'google_accounts.json');
   }

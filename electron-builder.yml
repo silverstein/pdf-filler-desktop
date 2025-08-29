@@ -1,0 +1,35 @@
+appId: com.gemini.pdffiller
+productName: PDF Filler
+directories:
+  output: dist
+
+files:
+  - dist/**/*
+  - public/**/*
+  - gemini-cli-local/**/*
+  - "!gemini-cli-local/.gemini/**/*"
+  - "!gemini-cli-local/node_modules/.cache/**/*"
+  - assets/**/*
+  - scripts/**/*
+  - uploads/.gitkeep
+  - node_modules/@modelcontextprotocol/**/*
+  - package.json
+  - CLAUDE.md
+  - README.md
+
+# Force include gemini-cli-local node_modules even though it's gitignored
+includeSubNodeModules: true
+
+asarUnpack:
+  - gemini-cli-local/**/*
+  - uploads/**/*
+  - node_modules/@modelcontextprotocol/**/*
+
+mac:
+  category: public.app-category.productivity
+
+win:
+  target: nsis
+
+linux:
+  target: AppImage

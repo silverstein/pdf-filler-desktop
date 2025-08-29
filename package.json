@@ -69,6 +69,11 @@
       "public/**/*",
       "gemini-cli-local/**/*",
       "!gemini-cli-local/.gemini/**/*",
+      "!gemini-cli-local/node_modules/**/test/**",
+      "!gemini-cli-local/node_modules/**/tests/**",
+      "!gemini-cli-local/node_modules/**/*.md",
+      "!gemini-cli-local/node_modules/**/LICENSE",
+      "!gemini-cli-local/node_modules/**/.npmignore",
       "assets/**/*",
       "scripts/**/*",
       "uploads/.gitkeep",
@@ -77,6 +82,7 @@
       "CLAUDE.md",
       "README.md"
     ],
+    "includeSubNodeModules": true,
     "asarUnpack": [
       "gemini-cli-local/**/*",
       "uploads/**/*",

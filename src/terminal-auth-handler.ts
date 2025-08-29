@@ -22,11 +22,14 @@ export class TerminalAuthHandler {
   constructor() {
     // Fix path resolution for packaged app
     const isDev = !app.isPackaged;
+    
+    // In packaged app, files in asarUnpack are in app.asar.unpacked
     const basePath = isDev 
       ? path.join(__dirname, '..')
-      : path.join(process.resourcesPath, 'app');
+      : path.join(process.resourcesPath, 'app.asar.unpacked');
     
-    this.localGeminiPath = path.join(basePath, 'gemini-cli-local', 'node_modules', '.bin', 'gemini');
+    // Use the actual Gemini CLI file instead of the symlink (which breaks in packaged apps)
+    this.localGeminiPath = path.join(basePath, 'gemini-cli-local', 'node_modules', '@google', 'gemini-cli', 'dist', 'index.js');
     this.localGeminiHome = path.join(basePath, 'gemini-cli-local');
     this.credPath = path.join(this.localGeminiHome, '.gemini', 'oauth_creds.json');
     this.accountsPath = path.join(this.localGeminiHome, '.gemini', 'google_accounts.json');
@@ -73,22 +76,50 @@ export class TerminalAuthHandler {
 
   async startAuth(mainWindow?: any): Promise<AuthResult> {
     console.log('Starting Terminal-based authentication...');
+    console.log('localGeminiPath:', this.localGeminiPath);
+    console.log('localGeminiHome:', this.localGeminiHome);
     
     // For macOS, we'll use AppleScript to open Terminal and run gemini
     // The gemini CLI will handle the OAuth flow when it detects no credentials
     const platform = process.platform;
     
     if (platform === 'darwin') {
-      // macOS - Use AppleScript to open Terminal with gemini command
-      // Just run gemini interactively - it will prompt for auth if needed
-      const command = `cd '${this.localGeminiHome}' && HOME='${this.localGeminiHome}' '${this.localGeminiPath}'`;
-      const script = `tell application "Terminal" to do script "${command.replace(/"/g, '\\"')}"`;
+      // macOS - Open Terminal app with the gemini command
+      // Using open -a Terminal with a command file is more reliable than AppleScript
+      const fs = require('fs');
+      const os = require('os');
       
-      exec(`osascript -e '${script}'`, (error) => {
+      // Create a temporary shell script that starts the auth flow
+      const scriptContent = `#!/bin/bash
+cd '${this.localGeminiHome}'
+export HOME='${this.localGeminiHome}'
+# Set auth method to use Google Cloud Auth (OAuth flow)
+export GOOGLE_GENAI_USE_GCA=true
+# Run Gemini CLI - it will automatically start auth flow when no credentials exist
+'${this.localGeminiPath}'
+`;
+      
+      const tempScript = path.join(os.tmpdir(), `gemini-auth-${Date.now()}.sh`);
+      fs.writeFileSync(tempScript, scriptContent);
+      fs.chmodSync(tempScript, '755');
+      
+      console.log('Opening Terminal with script:', tempScript);
+      
+      // Open Terminal and run the script
+      exec(`open -a Terminal "${tempScript}"`, (error, stdout, stderr) => {
         if (error) {
           console.error('Failed to open Terminal:', error);
+          console.error('stderr:', stderr);
         } else {
           console.log('Terminal opened with gemini CLI');
+          // Clean up temp file after a delay
+          setTimeout(() => {
+            try {
+              fs.unlinkSync(tempScript);
+            } catch (e) {
+              // Ignore cleanup errors
+            }
+          }, 5000);
         }
       });
     } else if (platform === 'win32') {

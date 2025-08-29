@@ -16,12 +16,17 @@ class GeminiSimple {
   }
 
   async checkGeminiCLI() {
-    // In production, check app.asar.unpacked directory
-    const isProduction = __dirname.includes('app.asar');
+    // Check if we're in an ASAR archive (packaged app)
+    const isPackaged = __dirname.includes('app.asar');
+    
     let localGeminiPath;
-    if (isProduction) {
-      const resourcesPath = path.join(__dirname, '../../');
-      localGeminiPath = path.join(resourcesPath, 'app.asar.unpacked/gemini-cli-local/node_modules/.bin/gemini');
+    if (isPackaged) {
+      // In packaged app, files in asarUnpack are in app.asar.unpacked
+      // Go up from app.asar/dist to Resources, then into app.asar.unpacked
+      const resourcesPath = path.join(__dirname, '..', '..');
+      const basePath = path.join(resourcesPath, 'app.asar.unpacked');
+      // Use the actual Gemini CLI file instead of the symlink (which breaks in packaged apps)
+      localGeminiPath = path.join(basePath, 'gemini-cli-local', 'node_modules', '@google', 'gemini-cli', 'dist', 'index.js');
     } else {
       localGeminiPath = path.join(__dirname, '../gemini-cli-local/node_modules/.bin/gemini');
     }
@@ -34,11 +39,16 @@ class GeminiSimple {
   }
   
   getGeminiPath() {
-    // In production, use app.asar.unpacked directory
-    const isProduction = __dirname.includes('app.asar');
-    if (isProduction) {
-      const resourcesPath = path.join(__dirname, '../../');
-      return path.join(resourcesPath, 'app.asar.unpacked/gemini-cli-local/node_modules/.bin/gemini');
+    // Check if we're in an ASAR archive (packaged app)
+    const isPackaged = __dirname.includes('app.asar');
+    
+    if (isPackaged) {
+      // In packaged app, files in asarUnpack are in app.asar.unpacked
+      // Go up from app.asar/dist to Resources, then into app.asar.unpacked
+      const resourcesPath = path.join(__dirname, '..', '..');
+      const basePath = path.join(resourcesPath, 'app.asar.unpacked');
+      // Use the actual Gemini CLI file instead of the symlink (which breaks in packaged apps)
+      return path.join(basePath, 'gemini-cli-local', 'node_modules', '@google', 'gemini-cli', 'dist', 'index.js');
     } else {
       return path.join(__dirname, '../gemini-cli-local/node_modules/.bin/gemini');
     }
@@ -76,23 +86,30 @@ class GeminiSimple {
       console.log(`Using model: ${model} (fallback=${this.useFlashFallback})`);
       
       // Set up environment to use local Gemini config
-      const isProduction = __dirname.includes('app.asar');
+      const isPackaged = __dirname.includes('app.asar');
+      
       let localGeminiHome;
-      if (isProduction) {
-        const resourcesPath = path.join(__dirname, '../../');
-        localGeminiHome = path.join(resourcesPath, 'app.asar.unpacked/gemini-cli-local');
+      let cwd;
+      if (isPackaged) {
+        // In packaged app, files in asarUnpack are in app.asar.unpacked
+        const resourcesPath = path.join(__dirname, '..', '..');
+        const basePath = path.join(resourcesPath, 'app.asar.unpacked');
+        localGeminiHome = path.join(basePath, 'gemini-cli-local');
+        cwd = resourcesPath; // Run from Resources directory
       } else {
         localGeminiHome = path.join(__dirname, '../gemini-cli-local');
+        cwd = path.join(__dirname, '..'); // Run from project root
       }
       const env = {
         ...process.env,
         HOME: localGeminiHome,
-        GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT || 'pdf-filler-desktop'
+        GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT || 'pdf-filler-desktop',
+        GOOGLE_GENAI_USE_GCA: 'true' // Use Google Cloud Auth (OAuth)
       };
       
       const gemini = spawn(this.getGeminiPath(), args, { 
         env,
-        cwd: path.join(__dirname, '..') // Run from project root
+        cwd
       });
       
       let output = '';

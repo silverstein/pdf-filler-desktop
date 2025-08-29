@@ -139,6 +139,44 @@ HOME=./gemini-cli-local ./gemini-cli-local/node_modules/.bin/gemini -p "test"
 npm run build
 ```
 
+## Critical Authentication Fix (August 2024)
+
+### Problem
+Authentication was broken in the packaged Electron app due to:
+1. Symlink `.bin/gemini` not working in packaged apps
+2. AppleScript permissions blocked by macOS
+3. Missing environment variable `GOOGLE_GENAI_USE_GCA`
+4. Incorrect path resolution in packaged vs development
+
+### Solution
+1. **Use actual Gemini CLI path** instead of symlink:
+   - `gemini-cli-local/node_modules/@google/gemini-cli/dist/index.js`
+   
+2. **Use `open -a Terminal` with temp script** instead of AppleScript:
+   - Create temp shell script
+   - Open with Terminal app
+   - Auto-cleanup after 5 seconds
+
+3. **Set required environment variables**:
+   ```bash
+   export HOME='[gemini-cli-local path]'
+   export GOOGLE_CLOUD_PROJECT='pdf-filler-desktop'  # Dummy value
+   export GOOGLE_GENAI_USE_GCA=true  # Enable OAuth flow
+   ```
+
+4. **Correct path resolution**:
+   - Dev: `path.join(__dirname, '..')`  
+   - Packaged: `path.join(process.resourcesPath, 'app.asar.unpacked')`
+
+### Authentication Flow
+1. User clicks "Sign in with Google"
+2. App creates temp shell script with auth command
+3. Terminal opens and runs Gemini CLI
+4. Browser opens with Google OAuth
+5. User signs in with regular Google account
+6. Credentials saved to `gemini-cli-local/.gemini/`
+7. App detects auth completion and refreshes
+
 ## Building the Electron App
 
 ### IMPORTANT: Build Configuration

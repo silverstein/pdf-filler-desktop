@@ -4778,8 +4778,8 @@
             clearBtn.addEventListener('click', async () => {
                 if (confirm('Are you sure you want to clear all recent files?')) {
                     try {
-                        if (window.electronAPI) {
-                            await window.electronAPI.invoke('clear-recent-files');
+                        if (window.electronAPI && window.electronAPI.clearRecentFiles) {
+                            await window.electronAPI.clearRecentFiles();
                         }
                         recentFiles = [];
                         // Clear from localStorage as well
@@ -4804,9 +4804,9 @@
         // Load recent files from Electron
         async function loadRecentFiles() {
             try {
-                if (window.electronAPI) {
+                if (window.electronAPI && window.electronAPI.getRecentFiles) {
                     // Try to get from Electron first
-                    recentFiles = await window.electronAPI.invoke('get-recent-files') || [];
+                    recentFiles = await window.electronAPI.getRecentFiles() || [];
                     // If empty, try localStorage as fallback
                     if (recentFiles.length === 0) {
                         loadRecentFilesFromStorage();
@@ -4998,8 +4998,8 @@
         }
         
         // Listen for recent files updates from Electron
-        if (window.electronAPI) {
-            window.electronAPI.on('recent-files-updated', (updatedFiles) => {
+        if (window.electronAPI && window.electronAPI.onRecentFilesUpdated) {
+            window.electronAPI.onRecentFilesUpdated((updatedFiles) => {
                 recentFiles = updatedFiles || [];
                 updateRecentFilesList();
             });
