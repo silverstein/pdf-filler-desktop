@@ -89,14 +89,14 @@ export class TerminalAuthHandler {
       const fs = require('fs');
       const os = require('os');
       
-      // Create a temporary shell script that starts the auth flow
+      // Create a temporary shell script that auto-selects option 1 (Login with Google)
       const scriptContent = `#!/bin/bash
 cd '${this.localGeminiHome}'
 export HOME='${this.localGeminiHome}'
 # Set auth method to use Google Cloud Auth (OAuth flow)
 export GOOGLE_GENAI_USE_GCA=true
-# Run Gemini CLI - it will automatically start auth flow when no credentials exist
-'${this.localGeminiPath}'
+# Echo "1" to select "Login with Google" option automatically
+echo "1" | '${this.localGeminiPath}'
 `;
       
       const tempScript = path.join(os.tmpdir(), `gemini-auth-${Date.now()}.sh`);
@@ -105,7 +105,7 @@ export GOOGLE_GENAI_USE_GCA=true
       
       console.log('Opening Terminal with script:', tempScript);
       
-      // Open Terminal and run the script
+      // Open Terminal with the script
       exec(`open -a Terminal "${tempScript}"`, (error, stdout, stderr) => {
         if (error) {
           console.error('Failed to open Terminal:', error);

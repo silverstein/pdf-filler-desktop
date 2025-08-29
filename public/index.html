@@ -2892,9 +2892,9 @@
         // Use native file dialog if in Electron, otherwise fall back to web input
         dropZone.addEventListener('click', async () => {
             if (window.electronAPI) {
-                const result = await window.electronAPI.selectPDF();
-                if (result.success) {
-                    handleNativeFile(result.filePath);
+                const filePath = await window.electronAPI.selectPDF();
+                if (filePath) {
+                    handleNativeFile(filePath);
                 }
             } else {
                 fileInput.click();
@@ -5006,10 +5006,10 @@
         }
         
         // Refresh icons after theme changes
-        const originalToggleTheme = toggleTheme;
-        if (typeof originalToggleTheme === 'function') {
-            window.toggleTheme = function(themeName) {
-                originalToggleTheme(themeName);
+        const originalApplyTheme = applyTheme;
+        if (typeof originalApplyTheme === 'function') {
+            window.applyTheme = function(themeName) {
+                originalApplyTheme(themeName);
                 // Re-initialize icons after theme change
                 setTimeout(() => {
                     if (window.lucide) {
