@@ -38,6 +38,17 @@ const getUploadDir = () => {
   return path.join(__dirname, '../uploads');
 };
 
+// Determine temp directory based on environment
+const getTempDir = () => {
+  // Check if running in Electron
+  if (process.versions && process.versions.electron) {
+    const { app } = require('electron');
+    return path.join(app.getPath('userData'), 'temp');
+  }
+  // Fallback for development/standalone server
+  return path.join(__dirname, '../temp');
+};
+
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     const uploadDir = getUploadDir();
@@ -80,7 +91,7 @@ async function ensureFileInWorkspace(filePath) {
   }
   
   // Copy to temp directory
-  const tempDir = path.join(projectRoot, 'temp');
+  const tempDir = getTempDir();
   await fs.mkdir(tempDir, { recursive: true });
   
   const fileName = path.basename(filePath);
@@ -521,7 +532,7 @@ app.get('/api/profiles/:name/export', async (req, res) => {
     
     // Create a temporary export file
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const tempDir = path.join(__dirname, '../temp');
+    const tempDir = getTempDir();
     await fs.mkdir(tempDir, { recursive: true });
     const exportPath = path.join(tempDir, `${name}_export_${timestamp}.json`);
     
