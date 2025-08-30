@@ -1,9 +1,10 @@
 // TypeScript version of the working Gemini CLI implementation
 // This uses direct CLI spawning with MCP filesystem support for PDF access
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
+import * as os from 'os';
 import {
   PDFAnalysisResult,
   PDFExtractionResult,
@@ -13,6 +14,7 @@ import {
   ExtractOptions,
   ProcessingResult
 } from '../types';
+import { findSystemNodeBinary } from '../utils/node-locator';
 
 export class GeminiCLIService {
   private rateLimiter: RateLimiter;
@@ -20,6 +22,9 @@ export class GeminiCLIService {
   private useFlashFallback: boolean = true; // Default to Flash for most operations
   private geminiPath: string;
   private localGeminiHome: string;
+  private serverFilesystemPath: string;
+  private userHome: string;
+  private nodeBinary: string | null = null;
 
   constructor() {
     this.rateLimiter = {
@@ -43,11 +48,18 @@ export class GeminiCLIService {
       // Use the actual Gemini CLI file instead of the symlink (which breaks in packaged apps)
       this.geminiPath = path.join(basePath, 'gemini-cli-local', 'node_modules', '@google', 'gemini-cli', 'dist', 'index.js');
       this.localGeminiHome = path.join(basePath, 'gemini-cli-local');
+      // Path to MCP filesystem server within the unpacked app bundle
+      this.serverFilesystemPath = path.join(basePath, 'node_modules', '@modelcontextprotocol', 'server-filesystem', 'dist', 'index.js');
     } else {
-      // Development mode
-      this.geminiPath = path.join(__dirname, '../../gemini-cli-local/node_modules/.bin/gemini');
+      // Development mode - use actual script path, not symlink
+      this.geminiPath = path.join(__dirname, '../../gemini-cli-local/node_modules/@google/gemini-cli/dist/index.js');
       this.localGeminiHome = path.join(__dirname, '../../gemini-cli-local');
+      // Path to MCP filesystem server from dev node_modules
+      this.serverFilesystemPath = path.join(__dirname, '../../node_modules/@modelcontextprotocol/server-filesystem/dist/index.js');
     }
+
+    // Resolve the real user home for the filesystem workspace root and spawn cwd
+    this.userHome = os.homedir();
   }
 
   async checkGeminiCLI(): Promise<boolean> {
@@ -96,6 +108,20 @@ export class GeminiCLIService {
 
   public async callGemini(prompt: string, forcePro: boolean = false): Promise<string> {
     await this.checkRateLimit();
+
+    // Resolve a Node.js binary - try Electron's built-in first, then system Node
+    const nodeBin = this.nodeBinary || (this.nodeBinary = await findSystemNodeBinary({ timeoutMs: 5000, shellInteractive: true }));
+    if (!nodeBin) {
+      throw new Error(
+        'Unable to locate a Node.js binary. This app requires either:\n' +
+        '1. A modern Electron runtime (you have it, but it may lack the File global), OR\n' +
+        '2. Node.js installed on your system (e.g., with Homebrew: brew install node)\n\n' +
+        'You can also set PDF_FILLER_NODE_PATH environment variable to point to your Node binary.'
+      );
+    }
+    
+    // Determine if we're using Electron as Node
+    const isElectronAsNode = nodeBin === 'ELECTRON_AS_NODE';
     
     return new Promise((resolve, reject) => {
       // Force Pro for intelligence analysis, otherwise use Flash by default
@@ -108,17 +134,58 @@ export class GeminiCLIService {
       const args = ['-m', model, '-p', prompt];
       console.log(`Using model: ${model} (forcePro=${forcePro}, fallback=${this.useFlashFallback})`);
       
+      // Prepare Node executable and args based on whether we're using Electron or system Node
+      let nodeExec: string;
+      let nodeArgs: string[];
+      
+      if (isElectronAsNode) {
+        console.log('Using Electron\'s built-in Node (ELECTRON_RUN_AS_NODE=1)');
+        nodeExec = process.execPath;
+        nodeArgs = [this.geminiPath, ...args];
+      } else {
+        console.log(`Using system Node at: ${nodeBin}`);
+        nodeExec = nodeBin;
+        nodeArgs = [this.geminiPath, ...args];
+      }
+      
+      console.log('Executing:', nodeExec);
+      console.log('With args:', nodeArgs);
+      
+      // Inject MCP servers via env so discovery does not depend on HOME/cwd
+      const mcpServers = JSON.stringify({
+        filesystem: {
+          command: isElectronAsNode ? process.execPath : 'node',
+          args: [this.serverFilesystemPath, this.userHome],
+          env: isElectronAsNode ? { ELECTRON_RUN_AS_NODE: '1' } : {}
+        }
+      });
+
       // Set up environment with local Gemini home for OAuth credentials
-      const env = {
+      const env: any = {
         ...process.env,
-        HOME: this.localGeminiHome,
+        HOME: this.localGeminiHome, // keep OAuth creds sandboxed in app data
         GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT || 'pdf-filler-desktop',
-        GOOGLE_GENAI_USE_GCA: 'true' // Use Google Cloud Auth (OAuth)
+        GOOGLE_GENAI_USE_GCA: 'true', // Use Google Cloud Auth (OAuth)
+        MCP_SERVERS: mcpServers,
+        MODEL_CONTEXT_PROTOCOL_SERVERS: mcpServers,
+        MCP_DEBUG: process.env.MCP_DEBUG || '0',
+        MODEL_CONTEXT_PROTOCOL_DEBUG: process.env.MODEL_CONTEXT_PROTOCOL_DEBUG || '0',
+        // Prevent Gemini CLI from relaunching itself with heap flags
+        // This avoids argv parsing issues when using ELECTRON_RUN_AS_NODE
+        GEMINI_CLI_NO_RELAUNCH: '1',
+        // Optionally set heap size directly (4GB like Gemini would set)
+        NODE_OPTIONS: '--max-old-space-size=4096'
       };
       
-      const gemini = spawn(this.geminiPath, args, { 
+      // Add ELECTRON_RUN_AS_NODE if using Electron
+      if (isElectronAsNode) {
+        env.ELECTRON_RUN_AS_NODE = '1';
+      }
+
+      // Use the user's home dir as cwd so the default MCP workspace (if used) is expansive
+      const gemini = spawn(nodeExec, nodeArgs, { 
         env,
-        cwd: path.join(__dirname, '../..') // Run from project root
+        cwd: this.userHome
       });
       
       let output = '';

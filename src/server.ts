@@ -145,13 +145,22 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Configure multer for file uploads
 // Determine upload directory based on environment
 const getUploadDir = (): string => {
-  // Check if running in Electron
-  if (process.versions && process.versions.electron) {
-    const { app } = require('electron');
-    return path.join(app.getPath('userData'), 'uploads');
+  // Check if we have the Electron user data path passed as env variable
+  if (process.env.ELECTRON_USER_DATA) {
+    return path.join(process.env.ELECTRON_USER_DATA, 'uploads');
   }
   // Fallback for development/standalone server
   return path.join(__dirname, '../uploads');
+};
+
+// Determine temp directory based on environment
+const getTempDir = (): string => {
+  // Check if we have the Electron user data path passed as env variable
+  if (process.env.ELECTRON_USER_DATA) {
+    return path.join(process.env.ELECTRON_USER_DATA, 'temp');
+  }
+  // Fallback for development/standalone server
+  return path.join(__dirname, '../temp');
 };
 
 const storage = multer.diskStorage({
@@ -259,7 +268,7 @@ async function ensureFileInWorkspace(filePath: string): Promise<string> {
   }
   
   // Copy to temp directory
-  const tempDir = path.join(projectRoot, 'temp');
+  const tempDir = getTempDir();
   await fs.mkdir(tempDir, { recursive: true });
   
   const fileName = path.basename(filePath);
@@ -671,7 +680,7 @@ app.get('/api/profiles/:name/export', async (req: Request, res: Response) => {
     
     // Create a temporary export file
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const tempDir = path.join(__dirname, '../temp');
+    const tempDir = getTempDir();
     await fs.mkdir(tempDir, { recursive: true });
     const exportPath = path.join(tempDir, `${name}_export_${timestamp}.json`);
     

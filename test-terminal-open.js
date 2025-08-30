@@ -4,7 +4,7 @@
 const { exec } = require('child_process');
 const path = require('path');
 
-const basePath = '/Users/silverbook/Sites/gemini-pdf-filler/dist/mac-arm64/PDF Filler.app/Contents/Resources/app.asar.unpacked';
+const basePath = path.join(__dirname, 'dist', 'mac-arm64', 'PDF Filler.app', 'Contents', 'Resources', 'app.asar.unpacked');
 const localGeminiPath = path.join(basePath, 'gemini-cli-local', 'node_modules', '.bin', 'gemini');
 const localGeminiHome = path.join(basePath, 'gemini-cli-local');
 

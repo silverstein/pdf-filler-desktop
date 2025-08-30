@@ -69,7 +69,11 @@ function startServer(): Promise<void> {
     
     // Use electron's fork for ASAR compatibility
     serverProcess = fork(serverPath, [], {
-      env: { ...process.env, PORT: String(SERVER_PORT) },
+      env: { 
+        ...process.env, 
+        PORT: String(SERVER_PORT),
+        ELECTRON_USER_DATA: app.getPath('userData')
+      },
       silent: true // Capture stdout/stderr
     });
 
