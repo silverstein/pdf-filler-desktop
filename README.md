@@ -21,7 +21,7 @@ A native desktop application for PDF form filling and analysis, powered by Googl
 - 🔄 **Bulk Processing** - Process multiple PDFs from CSV data with template-based filling
 - 👤 **Profile System** - Save and reuse common form data with secure encryption
 - 📝 **Recent Files** - Quick access to recently processed PDFs
-- 🎨 **Multiple Themes** - Dark, Light, Ocean, Forest, and more
+- 🎨 **Multiple Themes** - Brutalist, Glassmorphic, Neubrutalism, Gruvbox, and Mono
 
 ## 🚧 Coming Soon
 
@@ -30,13 +30,19 @@ A native desktop application for PDF form filling and analysis, powered by Googl
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### For Users (Download Pre-built App)
 
 1. **Google Account** - For Gemini authentication (OAuth)
 2. **macOS** - Currently optimized for Mac (Windows/Linux coming soon)
-3. **No Node.js required!** - The app is completely standalone
+3. **No Node.js required!** - The pre-built app is completely standalone
 
-### Installation
+Download the latest release from the [Releases page](https://github.com/silverstein/pdf-filler-desktop/releases) and drag to Applications.
+
+### For Developers (Build from Source)
+
+**Prerequisites for Development:**
+- Node.js v18+ (for building only - the app uses Electron's built-in Node at runtime)
+- npm or pnpm
 
 ```bash
 # Clone the repository

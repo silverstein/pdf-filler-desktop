@@ -61,6 +61,7 @@
   "build": {
     "appId": "com.gemini.pdffiller",
     "productName": "PDF Filler",
+    "icon": "assets/icon.icns",
     "directories": {
       "output": "dist"
     },

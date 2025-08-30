@@ -1,6 +1,6 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- PDF document gradient - works on light/dark backgrounds -->
+    <!-- PDF document gradient - vibrant and visible -->
     <linearGradient id="pdfGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#FF6B35;stop-opacity:1" />
       <stop offset="50%" style="stop-color:#E55A2B;stop-opacity:1" />
@@ -9,7 +9,7 @@
     
     <!-- Shadow for depth -->
     <filter id="dropShadow">
-      <feDropShadow dx="6" dy="6" stdDeviation="8" flood-color="rgba(0,0,0,0.4)"/>
+      <feDropShadow dx="12" dy="12" stdDeviation="16" flood-color="rgba(0,0,0,0.5)"/>
     </filter>
     
     <!-- AI sparkle gradient -->
@@ -18,77 +18,66 @@
       <stop offset="70%" style="stop-color:#FFC107;stop-opacity:0.9" />
       <stop offset="100%" style="stop-color:#FF9800;stop-opacity:0.6" />
     </radialGradient>
-    
-    <!-- App background with rounded corners -->
-    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#2A2A2A;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#1A1A1A;stop-opacity:1" />
-    </linearGradient>
   </defs>
   
-  <!-- App icon background -->
-  <rect width="1024" height="1024" rx="180" ry="180" fill="url(#bgGradient)" stroke="#333" stroke-width="8"/>
-  
-  <!-- Main PDF document -->
-  <rect x="250" y="200" width="420" height="550" rx="15" ry="15" 
+  <!-- Main PDF document - CENTERED and large -->
+  <rect x="152" y="120" width="720" height="900" rx="40" ry="40" 
         fill="url(#pdfGradient)" 
         stroke="#B83E1A" 
-        stroke-width="4"
+        stroke-width="8"
         filter="url(#dropShadow)"/>
   
-  <!-- Folded corner -->
-  <polygon points="580,200 670,200 670,290" 
+  <!-- Folded corner - centered with document -->
+  <polygon points="712,120 872,120 872,280" 
            fill="#B83E1A" 
            stroke="#943018" 
-           stroke-width="2"/>
-  <polygon points="580,200 580,290 670,290" 
+           stroke-width="4"/>
+  <polygon points="712,120 712,280 872,280" 
            fill="#D44820" 
            stroke="#B83E1A" 
-           stroke-width="1"/>
+           stroke-width="3"/>
   
-  <!-- PDF text -->
-  <text x="460" y="500" 
+  <!-- PDF text - centered -->
+  <text x="512" y="580" 
         font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif" 
-        font-size="90" 
+        font-size="160" 
         font-weight="bold" 
         text-anchor="middle" 
         fill="white" 
         stroke="#B83E1A" 
-        stroke-width="2">PDF</text>
+        stroke-width="4">PDF</text>
   
-  <!-- AI/Gemini sparkles -->
-  <!-- Main sparkle -->
-  <g transform="translate(460,580)">
-    <path d="M0,-20 L6,-6 L20,0 L6,6 L0,20 L-6,6 L-20,0 L-6,-6 Z" 
+  <!-- AI/Gemini sparkles - repositioned for centered document -->
+  <!-- Main sparkle below PDF text -->
+  <g transform="translate(512,720)">
+    <path d="M0,-30 L9,-9 L30,0 L9,9 L0,30 L-9,9 L-30,0 L-9,-9 Z" 
           fill="url(#sparkleGradient)" 
           stroke="#FFB300" 
-          stroke-width="2"/>
+          stroke-width="3"/>
   </g>
   
-  <!-- Corner sparkles -->
-  <g transform="translate(320,320)">
+  <!-- Corner sparkles - repositioned for centered layout -->
+  <g transform="translate(270,300)">
+    <path d="M0,-20 L5,-5 L20,0 L5,5 L0,20 L-5,5 L-20,0 L-5,-5 Z" 
+          fill="#FFE135" 
+          opacity="0.9"/>
+  </g>
+  
+  <g transform="translate(770,450)">
+    <path d="M0,-15 L4,-4 L15,0 L4,4 L0,15 L-4,4 L-15,0 L-4,-4 Z" 
+          fill="#FFC107" 
+          opacity="0.8"/>
+  </g>
+  
+  <g transform="translate(350,850)">
     <path d="M0,-12 L3,-3 L12,0 L3,3 L0,12 L-3,3 L-12,0 L-3,-3 Z" 
           fill="#FFE135" 
           opacity="0.9"/>
   </g>
   
-  <g transform="translate(600,380)">
+  <g transform="translate(670,900)">
     <path d="M0,-10 L2.5,-2.5 L10,0 L2.5,2.5 L0,10 L-2.5,2.5 L-10,0 L-2.5,-2.5 Z" 
           fill="#FFC107" 
-          opacity="0.8"/>
-  </g>
-  
-  <g transform="translate(380,680)">
-    <path d="M0,-8 L2,-2 L8,0 L2,2 L0,8 L-2,2 L-8,0 L-2,-2 Z" 
-          fill="#FFE135" 
-          opacity="0.9"/>
-  </g>
-  
-  <!-- Subtle AI circuit elements -->
-  <g opacity="0.4" stroke="#FFE135" stroke-width="2" fill="none">
-    <path d="M720,400 L780,400 L780,350 L820,350"/>
-    <circle cx="820" cy="350" r="4" fill="#FFC107"/>
-    <path d="M200,500 L140,500 L140,550 L100,550"/>
-    <circle cx="100" cy="550" r="4" fill="#FFC107"/>
+          opacity="0.7"/>
   </g>
 </svg>
