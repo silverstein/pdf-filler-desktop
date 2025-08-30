@@ -156,11 +156,29 @@ export async function findSystemNodeBinary(options: FindNodeOptions = {}): Promi
   const home = os.homedir();
   const timeoutMs = options.timeoutMs ?? 5000;
 
-  // 0) DISABLED: Electron's built-in Node has issues with Gemini CLI's argv parsing
-  // The Gemini CLI sees its own script path as an "Unknown argument" when spawned 
-  // from within an Electron app using ELECTRON_RUN_AS_NODE=1
-  // This is likely due to how Gemini CLI uses yargs and hideBin() for argument parsing
-  // For now, we use system Node which works reliably
+  // 0) Try Electron's built-in Node first (if we're in Electron)
+  // This works with Electron 37+ which has Node 22+ with the File global
+  // We use a shim to normalize argv for Gemini CLI's yargs parser
+  if (process.versions && process.versions.electron) {
+    try {
+      // Test if Electron's Node has the File global when run as Node
+      const electronAsNode = process.execPath;
+      const testEnv = { ...process.env, ELECTRON_RUN_AS_NODE: '1' };
+      const res = await trySpawnOnce(
+        electronAsNode, 
+        ['-e', 'console.log(typeof File !== "undefined")'],
+        { env: testEnv, timeoutMs: 1500 }
+      );
+      
+      if (res.stdout.trim() === 'true') {
+        console.log('Electron\'s built-in Node has File global - using ELECTRON_AS_NODE');
+        // Return a special marker that the caller will recognize
+        return 'ELECTRON_AS_NODE';
+      }
+    } catch (e) {
+      console.log('Electron\'s built-in Node doesn\'t have File global, searching for system Node...');
+    }
+  }
 
   // 1) Explicit overrides
   const envCandidates = uniq([

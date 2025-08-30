@@ -24,6 +24,7 @@ export class GeminiCLIService {
   private localGeminiHome: string;
   private serverFilesystemPath: string;
   private userHome: string;
+  private shimPath: string;
   private nodeBinary: string | null = null;
 
   constructor() {
@@ -48,12 +49,16 @@ export class GeminiCLIService {
       // Use the actual Gemini CLI file instead of the symlink (which breaks in packaged apps)
       this.geminiPath = path.join(basePath, 'gemini-cli-local', 'node_modules', '@google', 'gemini-cli', 'dist', 'index.js');
       this.localGeminiHome = path.join(basePath, 'gemini-cli-local');
+      // Shim lives alongside gemini-cli-local so it's also unpacked
+      this.shimPath = path.join(basePath, 'gemini-cli-local', 'gemini-electron-shim.js');
       // Path to MCP filesystem server within the unpacked app bundle
       this.serverFilesystemPath = path.join(basePath, 'node_modules', '@modelcontextprotocol', 'server-filesystem', 'dist', 'index.js');
     } else {
       // Development mode - use actual script path, not symlink
       this.geminiPath = path.join(__dirname, '../../gemini-cli-local/node_modules/@google/gemini-cli/dist/index.js');
       this.localGeminiHome = path.join(__dirname, '../../gemini-cli-local');
+      // Shim in repo for dev runs
+      this.shimPath = path.join(__dirname, '../../gemini-cli-local/gemini-electron-shim.js');
       // Path to MCP filesystem server from dev node_modules
       this.serverFilesystemPath = path.join(__dirname, '../../node_modules/@modelcontextprotocol/server-filesystem/dist/index.js');
     }
@@ -139,9 +144,10 @@ export class GeminiCLIService {
       let nodeArgs: string[];
       
       if (isElectronAsNode) {
-        console.log('Using Electron\'s built-in Node (ELECTRON_RUN_AS_NODE=1)');
+        console.log('Using Electron\'s built-in Node (ELECTRON_RUN_AS_NODE=1) with shim');
         nodeExec = process.execPath;
-        nodeArgs = [this.geminiPath, ...args];
+        // Pass: [shim, cliEntry, ...cliArgs] so shim normalizes argv for yargs
+        nodeArgs = [this.shimPath, this.geminiPath, ...args];
       } else {
         console.log(`Using system Node at: ${nodeBin}`);
         nodeExec = nodeBin;

@@ -139,6 +139,38 @@ HOME=./gemini-cli-local ./gemini-cli-local/node_modules/.bin/gemini -p "test"
 npm run build
 ```
 
+## 🚨 CRITICAL: Electron + Gemini CLI Integration (DO NOT BREAK THIS!)
+
+### The Problem We Solved
+Gemini CLI wouldn't work with Electron's built-in Node due to a yargs argv parsing issue. After hours of debugging with GPT-5 Pro, we discovered that `yargs/helpers.hideBin()` treats ELECTRON_RUN_AS_NODE differently - it only removes 1 argv element instead of 2, causing Gemini CLI to see its own script path as an "Unknown argument".
+
+### The Solution: gemini-electron-shim.js
+**DO NOT DELETE OR MODIFY THE SHIM WITHOUT UNDERSTANDING IT!**
+
+The shim (`gemini-cli-local/gemini-electron-shim.js`) normalizes argv before Gemini CLI loads:
+- When running in Electron: Sets argv to `[execPath, ...args]` (omits script path)
+- When running in Node: Sets argv to `[execPath, scriptPath, ...args]`
+
+This ensures `hideBin(process.argv)` works correctly in both contexts.
+
+### How It Works
+1. App uses Electron v37's built-in Node (has the File global that undici needs)
+2. GeminiCLIService spawns: `[electron, shim, gemini-cli, ...args]`
+3. Shim normalizes argv based on context
+4. Gemini CLI sees correct arguments
+
+### ⚠️ DO NOT:
+- Remove or rename `gemini-electron-shim.js`
+- Downgrade Electron below v37 (needs Node 22+ with File global)
+- Try to call Gemini CLI directly without the shim
+- Disable ELECTRON_AS_NODE in node-locator
+- Change how GeminiCLIService invokes the shim
+
+### Requirements
+- **Electron v37+** (contains Node v22+ with File global)
+- **The shim must be used** when running with ELECTRON_RUN_AS_NODE
+- **Users don't need Node.js installed** - the app is standalone!
+
 ## Critical Authentication Fix (August 2024)
 
 ### Problem
