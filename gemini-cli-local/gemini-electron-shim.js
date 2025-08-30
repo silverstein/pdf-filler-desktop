@@ -1,16 +1,28 @@
 #!/usr/bin/env node
 /**
  * Gemini CLI shim for Electron (ELECTRON_RUN_AS_NODE)
+ * 
+ * 🚨 CRITICAL: DO NOT DELETE OR MODIFY WITHOUT UNDERSTANDING!
+ * This shim is the ONLY reason the app works without requiring Node.js installation.
  *
  * Problem:
- * - yargs/helpers.hideBin() treats bundled Electron differently and slices only argv[0],
- *   leaving the CLI entry path at argv[1] within the "user args" and causing:
- *   "Unknown argument: /path/to/gemini-cli/dist/index.js" or usage-only behavior.
+ * - yargs/helpers.hideBin() in Gemini CLI behaves differently with ELECTRON_RUN_AS_NODE
+ * - In Electron context, hideBin() only removes argv[0] instead of argv[0] and argv[1]
+ * - This causes Gemini CLI to see its own script path as an "Unknown argument"
+ * - Hours of debugging with GPT-5 Pro were needed to figure this out!
  *
  * Solution:
- * - If running as a bundled Electron app, set argv to [execPath, ...args] (omit script path).
- * - Otherwise (Node or dev Electron), use [execPath, scriptPath, ...args].
- * - Then require() the real CLI entry file.
+ * - When running in Electron: Set argv to [execPath, ...args] (omit script path)
+ * - When running in pure Node: Use standard [execPath, scriptPath, ...args]
+ * - This ensures hideBin() always produces the correct result
+ * 
+ * Usage:
+ *   electron (with ELECTRON_RUN_AS_NODE=1) <this-shim> <path-to-gemini-cli/index.js> ...args
+ *
+ * DO NOT:
+ * - Try to call Gemini CLI directly without this shim
+ * - Change the argv normalization logic
+ * - Assume yargs will "just work" with Electron
  */
 
 const os = require('os');

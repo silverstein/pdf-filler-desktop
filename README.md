@@ -33,8 +33,8 @@ A native desktop application for PDF form filling and analysis, powered by Googl
 ### Prerequisites
 
 1. **Google Account** - For Gemini authentication (OAuth)
-2. **macOS, Windows, or Linux** - Cross-platform support
-3. **Node.js** (v18+) - Only needed for development
+2. **macOS** - Currently optimized for Mac (Windows/Linux coming soon)
+3. **No Node.js required!** - The app is completely standalone
 
 ### Installation
 
