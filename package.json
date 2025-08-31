@@ -24,7 +24,12 @@
     "test:pdf": "ts-node src/test-pdf-service.ts",
     "test:profiles": "ts-node src/test-profile-service.ts",
     "test:api": "ts-node src/test-api-health.ts",
-    "test": "npm run test:csv && npm run test:pdf && npm run test:profiles && npm run test:api"
+    "test:scripts": "npm run test:csv && npm run test:pdf && npm run test:profiles && npm run test:api",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test": "npm run test:scripts"
   },
   "keywords": [
     "pdf",
@@ -34,6 +39,9 @@
   ],
   "author": "Mat Silverstein (x1wealth.com)",
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@modelcontextprotocol/server-filesystem": "^2025.7.29",
     "ai": "^5.0.22",
@@ -61,7 +69,10 @@
     "fs-extra": "^11.3.1",
     "nodemon": "^3.0.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "supertest": "^7.0.0",
+    "vitest": "^2.0.5",
+    "@vitest/coverage-v8": "^2.0.5"
   },
   "build": {
     "appId": "com.gemini.pdffiller",

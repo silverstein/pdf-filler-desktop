@@ -1286,7 +1286,8 @@ app.post('/api/bulk', upload.fields([
 });
 
 // Start server
-app.listen(PORT, () => {
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
   console.log(`🚀 PDF Filler Server running on http://localhost:${PORT}`);
   console.log('📋 Available endpoints:');
   console.log('  🧠 Intelligence Features:');
@@ -1315,6 +1316,7 @@ app.listen(PORT, () => {
   console.log('  - GET  /api/profiles/:name/export     - Export profile');
   console.log('  - POST /api/profiles/import           - Import profile');
   console.log('  - POST /api/fill-with-profile-local   - Fill PDF using a profile');
-});
+  });
+}
 
 export default app;

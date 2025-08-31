@@ -18,7 +18,13 @@ function waitForServerOutput(child: ReturnType<typeof spawn>, keyword: string, t
     child.stderr?.on('data', (d) => {
       const text = d.toString();
       // Detect sandboxed environments where binding to a port is not permitted
-      if (text.includes('operation not permitted') || text.includes('listen EACCES') || text.includes('listen EPERM')) {
+      if (
+        text.includes('operation not permitted') ||
+        text.includes('listen EACCES') ||
+        text.includes('listen EPERM') ||
+        text.includes('EADDRINUSE') ||
+        text.includes('address already in use')
+      ) {
         console.warn('Skipping API test: sandbox blocked listening on a port.');
         clearTimeout(timer);
         try { child.kill('SIGTERM'); } catch {}

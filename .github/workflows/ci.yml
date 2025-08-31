@@ -7,26 +7,84 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build:
-    name: TypeScript build
-    runs-on: ubuntu-latest
+  build-and-test:
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: TypeScript compile
+      - name: Type-check and build TS
         run: npm run build:ts
 
-      - name: Smoke check compiled artifacts
-        run: |
-          node -e "const fs=require('fs');const paths=['dist/electron.js','dist/server.js'];let ok=true;for(const p of paths){if(!fs.existsSync(p)){console.error('Missing',p);ok=false}}process.exit(ok?0:1)"
+      - name: Run unit tests (Vitest)
+        run: npm run test:unit
+        env:
+          NODE_ENV: test
 
+      - name: Run smoke tests (ts-node scripts)
+        run: npm run test:scripts
+        env:
+          NODE_ENV: test
+
+  e2e-electron:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: macos-latest
+    needs: build-and-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: npm i -D @playwright/test
+
+      - name: Build app for Electron entry
+        run: npm run build:ts
+
+      - name: Run Electron e2e smoke test
+        run: npm run test:e2e
+
+  build-and-test-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and build TS
+        run: npm run build:ts
+
+      - name: Run unit tests (Vitest)
+        run: npm run test:unit
+        env:
+          NODE_ENV: test
+
+      - name: Run smoke tests (ts-node scripts)
+        run: npm run test:scripts
+        env:
+          NODE_ENV: test

@@ -23,5 +23,13 @@
     "alwaysStrict": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "gemini-cli-local", "uploads", "temp"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "gemini-cli-local",
+    "uploads",
+    "temp",
+    "src/**/*.test.ts",
+    "src/test-*.ts"
+  ]
 }

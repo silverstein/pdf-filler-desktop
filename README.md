@@ -33,15 +33,17 @@ A native desktop application for PDF form filling and analysis, powered by Googl
 ### For Users (Download Pre-built App)
 
 1. **Google Account** - For Gemini authentication (OAuth)
-2. **macOS** - Currently optimized for Mac (Windows/Linux coming soon)
+2. **Platforms**
+   - macOS: primary target with ready-made builds
+   - Windows/Linux: supported; build locally to generate an installer/binary
 3. **No Node.js required!** - The pre-built app is completely standalone
 
-Download the latest release from the [Releases page](https://github.com/silverstein/pdf-filler-desktop/releases) and drag to Applications.
+On macOS, download the latest release from the [Releases page](https://github.com/silverstein/pdf-filler-desktop/releases) and drag to Applications. On Windows/Linux, build locally (see below) to produce the installer/artifact.
 
 ### For Developers (Build from Source)
 
 **Prerequisites for Development:**
-- Node.js v18+ (for building only - the app uses Electron's built-in Node at runtime)
+- Node.js v18+ (we recommend Node 22 LTS for local tooling; app runtime uses Electron’s embedded Node)
 - npm or pnpm
 
 ```bash
@@ -96,19 +98,25 @@ No API keys needed - just your Google account!
 
 ## 🧪 Testing
 
-Lightweight tests are provided using ts-node scripts (no extra test framework needed).
+Lightweight tests are provided using ts-node scripts (no extra test framework needed). Optional Vitest suite is included for unit/integration tests.
 
 Commands:
 
 ```bash
-# Run all tests
-npm test
+# Run all ts-node smoke tests (default)
+npm test                 # same as npm run test:scripts
 
-# Run specific suites
-npm run test:csv       # CSVService sanity
-npm run test:pdf       # PDFService (creates a temp PDF with a form)
-npm run test:profiles  # ProfileService (uses a temp HOME dir)
-npm run test:api       # Server health endpoint smoke test
+# Run specific ts-node suites
+npm run test:csv         # CSVService sanity
+npm run test:pdf         # PDFService (creates a temp PDF with a form)
+npm run test:profiles    # ProfileService (uses a temp HOME dir)
+npm run test:api         # Server health endpoint smoke test
+
+# Vitest unit/integration tests (install dev deps first)
+npm i -D vitest @vitest/coverage-v8 supertest
+npm run test:unit        # runs Vitest suites in src/**/*.test.ts
+npm run test:watch       # watch mode
+npm run test:coverage    # coverage via V8
 ```
 
 Notes:
@@ -117,9 +125,40 @@ Notes:
 - TypeScript type-checking (`npm run build:ts`) also serves as a safety net.
 
 Optional, for larger suites later:
-- Unit tests: add Vitest (`vitest`, `@vitest/coverage-v8`) for fast watch and mocking.
-- Electron e2e: add Playwright and launch the app via the Electron helper for a window smoke test.
+- Electron e2e: a Playwright smoke test is included. To run locally:
+  ```bash
+  npm i -D @playwright/test
+  npm run build:ts
+  npm run test:e2e
+  ```
+  It launches Electron against `dist/electron.js` and asserts the main window loads.
 - If you want this set up, open an issue and we’ll add config + example specs.
+
+## 🧭 Node Versions
+
+- The packaged app runs on Electron’s embedded Node (separate from your system Node).
+- For local development, we recommend Node 22 LTS. A `.nvmrc` is provided; run `nvm use` if you use nvm.
+- `package.json` includes `engines.node: ">=18"` as guidance only (no strict enforcement).
+
+## 🪟 Windows & 🐧 Linux Notes
+
+- Windows and Linux are supported targets in `electron-builder.yml` (Windows NSIS, Linux AppImage).
+- To produce a Windows installer, build on a Windows machine:
+  ```bash
+  npm ci
+  npm run build
+  # Outputs an NSIS installer under dist/
+  ```
+- To produce a Linux AppImage, build on a Linux machine with the necessary system deps:
+  ```bash
+  npm ci
+  npm run build
+  # Outputs an AppImage under dist/
+  ```
+- Authentication:
+  - Windows: opens Command Prompt for Gemini CLI OAuth.
+  - Linux: attempts common terminals (xterm/gnome-terminal/konsole) for OAuth.
+- CI covers macOS and Windows for build + tests; Electron e2e smoke runs on macOS by default.
 
 ## 🎮 Usage
 
