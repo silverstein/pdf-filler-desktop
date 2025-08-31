@@ -350,6 +350,7 @@ MIT License - Use freely for personal and commercial projects!
 ## 🙏 Acknowledgments
 
 - Google Gemini team for the generous free tier
+- Ben Vargas for the [ai-sdk-provider-gemini-cli](https://github.com/ben-vargas/ai-sdk-provider-gemini-cli) package that enables AI SDK integration
 - pdf-lib for PDF manipulation
 - The open source community
 
