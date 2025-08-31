@@ -53,6 +53,19 @@ cd pdf-filler-desktop
 npm install
 ```
 
+### Configuration (Optional)
+
+**Most users don't need any configuration!** The app works out of the box for:
+- ✅ Regular Gmail accounts
+- ✅ Google Workspace accounts (the app handles this automatically)
+
+**The only time you might need a .env file:**
+- You want to use a different port (default is 3456)
+
+If you need to change the port:
+1. Copy `.env.example` to `.env`
+2. Change the PORT value
+
 ### Running the App
 
 ```bash
