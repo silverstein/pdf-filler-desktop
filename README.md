@@ -94,6 +94,33 @@ The app will:
 
 No API keys needed - just your Google account!
 
+## 🧪 Testing
+
+Lightweight tests are provided using ts-node scripts (no extra test framework needed).
+
+Commands:
+
+```bash
+# Run all tests
+npm test
+
+# Run specific suites
+npm run test:csv       # CSVService sanity
+npm run test:pdf       # PDFService (creates a temp PDF with a form)
+npm run test:profiles  # ProfileService (uses a temp HOME dir)
+npm run test:api       # Server health endpoint smoke test
+```
+
+Notes:
+- Tests write temporary files under `temp/`; safe to delete.
+- The API test starts the server with ts-node and terminates it automatically.
+- TypeScript type-checking (`npm run build:ts`) also serves as a safety net.
+
+Optional, for larger suites later:
+- Unit tests: add Vitest (`vitest`, `@vitest/coverage-v8`) for fast watch and mocking.
+- Electron e2e: add Playwright and launch the app via the Electron helper for a window smoke test.
+- If you want this set up, open an issue and we’ll add config + example specs.
+
 ## 🎮 Usage
 
 ### Finding the App

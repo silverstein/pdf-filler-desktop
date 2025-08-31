@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+# Treat common binaries appropriately
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.icns binary
+*.ico binary
+*.pdf binary
+*.zip binary
+

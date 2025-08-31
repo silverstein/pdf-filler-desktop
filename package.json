@@ -19,7 +19,12 @@
     "postinstall": "npm install @google/gemini-cli --prefix ./gemini-cli-local",
     "gemini": "./gemini-cli-local/node_modules/.bin/gemini",
     "gemini-auth": "./gemini-cli-local/node_modules/.bin/gemini auth login",
-    "test:ai": "ts-node src/test-ai-service.ts"
+    "test:ai": "ts-node src/test-ai-service.ts",
+    "test:csv": "ts-node src/test-csv-service.ts",
+    "test:pdf": "ts-node src/test-pdf-service.ts",
+    "test:profiles": "ts-node src/test-profile-service.ts",
+    "test:api": "ts-node src/test-api-health.ts",
+    "test": "npm run test:csv && npm run test:pdf && npm run test:profiles && npm run test:api"
   },
   "keywords": [
     "pdf",

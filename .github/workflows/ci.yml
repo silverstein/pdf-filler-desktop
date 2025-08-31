@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: TypeScript build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript compile
+        run: npm run build:ts
+
+      - name: Smoke check compiled artifacts
+        run: |
+          node -e "const fs=require('fs');const paths=['dist/electron.js','dist/server.js'];let ok=true;for(const p of paths){if(!fs.existsSync(p)){console.error('Missing',p);ok=false}}process.exit(ok?0:1)"
+

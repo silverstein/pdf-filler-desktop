@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a reproducible bug
+title: "bug: "
+labels: [bug]
+assignees: []
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Clear, concise description of the bug.
+      placeholder: What happened and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the exact steps, inputs, and files used.
+      placeholder: 1) … 2) … 3) …
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options: [macOS, Windows, Linux]
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      placeholder: e.g., 20.12.2
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Console output
+      description: Paste relevant logs, stack traces, or screenshots.
+      render: shell
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment details
+      description: App version, commit hash, custom config (.env) if relevant.
+
