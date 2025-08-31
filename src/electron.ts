@@ -113,8 +113,13 @@ function createWindow(): void {
       preload: path.join(__dirname, 'preload.js')
     },
     // icon: path.join(__dirname, '../assets/icon.png'), // Optional icon
-    title: 'PDF Filler'
+    title: 'PDF Filler',
+    show: false  // Don't show until maximized
   });
+
+  // Maximize window before showing for full width
+  mainWindow.maximize();
+  mainWindow.show();
 
   log(`Loading URL: ${SERVER_URL}`);
   mainWindow.loadURL(SERVER_URL);

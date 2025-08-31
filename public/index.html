@@ -438,10 +438,24 @@
         }
 
         .action-card {
-            padding: 1.5rem;
+            padding: 1.25rem;
             cursor: pointer;
             transition: all 0.3s ease;
             text-align: left;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            min-height: 90px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .action-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: var(--accent);
+            background: var(--surface-hover);
         }
         
         .upload-area.collapsed .action-card {
@@ -458,13 +472,18 @@
         }
 
         .action-card h3 {
-            font-size: 1.1rem;
-            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .action-card p {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             opacity: 0.7;
+            line-height: 1.3;
         }
 
         .rate-limits {
@@ -813,17 +832,19 @@
             .container {
                 max-width: 1200px;
                 margin: 0 auto;
-            }
-            
-            #mainApp {
                 display: grid !important;
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: minmax(320px, 1fr) 2fr;  /* Narrower dropzone, wider results area */
                 gap: 2rem;
                 align-items: start;
             }
             
+            #authSection {
+                grid-column: 1 / -1;  /* Auth section spans full width */
+            }
+            
             .upload-area {
                 max-width: none;
+                min-width: 320px;  /* Smaller minimum width for dropzone */
             }
             
             .results {
@@ -1160,6 +1181,15 @@
 
         .results-area.has-results .results {
             display: block;
+        }
+        
+        /* Extra wide screens get even better proportions */
+        @media (min-width: 1400px) {
+            .container {
+                max-width: 1400px;
+                grid-template-columns: minmax(350px, 1fr) 3fr !important;  /* Even narrower dropzone on very wide screens */
+                gap: 2.5rem;
+            }
         }
         
         /* Responsive behavior */
