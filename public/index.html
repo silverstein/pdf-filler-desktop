@@ -276,9 +276,14 @@
         .container {
             flex: 1;
             padding: 2rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: grid;
+            grid-template-columns: minmax(320px, 1fr) 2fr;
+            gap: 2rem;
+            align-items: start;
+        }
+        
+        #authSection {
+            grid-column: 1 / -1;  /* Auth section spans full width */
         }
 
         .upload-area {
@@ -2125,33 +2130,6 @@
                 </div>
             </div>
 
-            <div class="actions">
-                <div class="action-card" data-action="analyze">
-                    <h3><i data-lucide="search" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Analyze</h3>
-                    <p>Extract structure and form fields</p>
-                </div>
-                <div class="action-card" data-action="extract">
-                    <h3><i data-lucide="database" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Extract Data</h3>
-                    <p>Convert PDF content to JSON</p>
-                </div>
-                <div class="action-card" data-action="fill">
-                    <h3><i data-lucide="pen-tool" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Fill Form</h3>
-                    <p>Auto-fill PDF forms with data</p>
-                </div>
-                <div class="action-card" data-action="bulk-fill">
-                    <h3><i data-lucide="layers" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Bulk Fill</h3>
-                    <p>Fill multiple forms with CSV data</p>
-                </div>
-                <div class="action-card" data-action="validate">
-                    <h3><i data-lucide="check-circle" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Validate</h3>
-                    <p>Check required fields</p>
-                </div>
-                <div class="action-card" data-action="profiles">
-                    <h3><i data-lucide="user" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Profiles</h3>
-                    <p>Manage saved form data</p>
-                </div>
-            </div>
-
             <div class="rate-limits">
                 <h4><i data-lucide="activity" style="width: 18px; height: 18px; display: inline-block; vertical-align: text-bottom;"></i> Usage Limits (Free Tier)</h4>
                 <div class="limits">
@@ -2194,16 +2172,43 @@
             </div>
 
             <div class="error-message" id="errorMessage"></div>
+        </div>
 
-            <!-- Results area - ALWAYS VISIBLE -->
-            <div class="results-area" id="resultsSection">
-                <h3>Analysis Results</h3>
-                <div class="results-placeholder">
-                    <i data-lucide="file-search" style="width: 32px; height: 32px; opacity: 0.3;"></i>
-                    <p>Upload and analyze a PDF to see results</p>
+        <!-- Results area - ALWAYS VISIBLE (moved outside upload-area to be a grid sibling) -->
+        <div class="results-area" id="resultsSection">
+            <!-- Actions moved here from upload-area -->
+            <div class="actions">
+                <div class="action-card" data-action="analyze">
+                    <h3><i data-lucide="search" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Analyze</h3>
+                    <p>Extract structure and form fields</p>
+                </div>
+                <div class="action-card" data-action="extract">
+                    <h3><i data-lucide="database" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Extract Data</h3>
+                    <p>Convert PDF content to JSON</p>
+                </div>
+                <div class="action-card" data-action="fill">
+                    <h3><i data-lucide="pen-tool" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Fill Form</h3>
+                    <p>Auto-fill PDF forms with data</p>
+                </div>
+                <div class="action-card" data-action="bulk-fill">
+                    <h3><i data-lucide="layers" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Bulk Fill</h3>
+                    <p>Fill multiple forms with CSV data</p>
+                </div>
+                <div class="action-card" data-action="validate">
+                    <h3><i data-lucide="check-circle" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Validate</h3>
+                    <p>Check required fields</p>
+                </div>
+                <div class="action-card" data-action="profiles">
+                    <h3><i data-lucide="user" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Profiles</h3>
+                    <p>Manage saved form data</p>
                 </div>
             </div>
-
+            
+            <h3 style="margin-top: 2rem;">Analysis Results</h3>
+            <div class="results-placeholder">
+                <i data-lucide="file-search" style="width: 32px; height: 32px; opacity: 0.3;"></i>
+                <p>Upload and analyze a PDF to see results</p>
+            </div>
         </div>
         </main>
     </div>
@@ -4829,6 +4834,15 @@
             
             // Handle window resize
             window.addEventListener('resize', updateSidebarState);
+            
+            // Add keyboard shortcut for sidebar toggle (Cmd+B on Mac, Ctrl+B on Windows/Linux)
+            document.addEventListener('keydown', (e) => {
+                // Check for Cmd+B (Mac) or Ctrl+B (Windows/Linux)
+                if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+                    e.preventDefault(); // Prevent browser bookmarks
+                    toggleSidebar();
+                }
+            });
         }
         
         // Load recent files from Electron
