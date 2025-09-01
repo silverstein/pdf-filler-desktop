@@ -36,7 +36,9 @@ export class TerminalWindow {
     });
     
     // Load the terminal HTML
+    // In packaged app, __dirname points to app.asar/dist, so we need to go up one level
     const terminalPath = path.join(__dirname, '..', 'public', 'terminal.html');
+    console.log('Loading terminal HTML from:', terminalPath);
     await this.window.loadFile(terminalPath);
     
     // Show window when ready
@@ -64,18 +66,43 @@ export class TerminalWindow {
       // Update status
       this.window.webContents.send('status-update', 'Starting authentication...');
       
-      // Create temporary script that auto-selects option 1
-      const os = require('os');
-      const scriptContent = `#!/bin/bash
+      // Check if we're in a packaged app and need to use Electron's Node with the shim
+      const { app } = require('electron');
+      const isPackaged = app.isPackaged;
+      
+      let authCommand: string;
+      if (isPackaged) {
+        // In packaged app, use Electron's Node with the shim
+        const electronPath = process.execPath;
+        const shimPath = path.join(geminiHome, 'gemini-electron-shim.js');
+        
+        // Create temporary script that uses Electron's Node with the shim
+        const os = require('os');
+        const scriptContent = `#!/bin/bash
+cd '${geminiHome}'
+export HOME='${geminiHome}'
+export GOOGLE_GENAI_USE_GCA=true
+export GOOGLE_CLOUD_PROJECT='pdf-filler-desktop'
+export ELECTRON_RUN_AS_NODE=1
+echo "1" | '${electronPath}' '${shimPath}' '${geminiPath}'
+`;
+        authCommand = scriptContent;
+      } else {
+        // In development, use Node directly
+        const os = require('os');
+        const scriptContent = `#!/bin/bash
 cd '${geminiHome}'
 export HOME='${geminiHome}'
 export GOOGLE_GENAI_USE_GCA=true
 export GOOGLE_CLOUD_PROJECT='pdf-filler-desktop'
 echo "1" | '${geminiPath}'
 `;
+        authCommand = scriptContent;
+      }
       
+      const os = require('os');
       const tempScript = path.join(os.tmpdir(), `gemini-auth-${Date.now()}.sh`);
-      fs.writeFileSync(tempScript, scriptContent);
+      fs.writeFileSync(tempScript, authCommand);
       fs.chmodSync(tempScript, '755');
       
       // Spawn the authentication process

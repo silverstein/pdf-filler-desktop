@@ -80,6 +80,15 @@ export class TerminalAuthHandler {
     console.log('localGeminiPath:', this.localGeminiPath);
     console.log('localGeminiHome:', this.localGeminiHome);
     
+    // Check if gemini CLI exists
+    try {
+      await fs.access(this.localGeminiPath);
+      console.log('Gemini CLI found at:', this.localGeminiPath);
+    } catch (error) {
+      console.error('Gemini CLI NOT found at:', this.localGeminiPath);
+      return { success: false, error: `Gemini CLI not found at: ${this.localGeminiPath}` };
+    }
+    
     const platform = process.platform;
     
     // Try to use our custom terminal window first (macOS and Linux)
@@ -114,15 +123,37 @@ export class TerminalAuthHandler {
       const fs = require('fs');
       const os = require('os');
       
-      // Create a temporary shell script that auto-selects option 1 (Login with Google)
-      const scriptContent = `#!/bin/bash
+      // Check if we're in a packaged app and need to use Electron's Node with the shim
+      const isPackaged = app.isPackaged;
+      let scriptContent: string;
+      
+      if (isPackaged) {
+        // In packaged app, use Electron's Node with the shim
+        const electronPath = process.execPath;
+        const shimPath = path.join(this.localGeminiHome, 'gemini-electron-shim.js');
+        
+        scriptContent = `#!/bin/bash
 cd '${this.localGeminiHome}'
 export HOME='${this.localGeminiHome}'
 # Set auth method to use Google Cloud Auth (OAuth flow)
 export GOOGLE_GENAI_USE_GCA=true
+export GOOGLE_CLOUD_PROJECT='pdf-filler-desktop'
+export ELECTRON_RUN_AS_NODE=1
+# Echo "1" to select "Login with Google" option automatically
+echo "1" | '${electronPath}' '${shimPath}' '${this.localGeminiPath}'
+`;
+      } else {
+        // In development, use Node directly
+        scriptContent = `#!/bin/bash
+cd '${this.localGeminiHome}'
+export HOME='${this.localGeminiHome}'
+# Set auth method to use Google Cloud Auth (OAuth flow)
+export GOOGLE_GENAI_USE_GCA=true
+export GOOGLE_CLOUD_PROJECT='pdf-filler-desktop'
 # Echo "1" to select "Login with Google" option automatically
 echo "1" | '${this.localGeminiPath}'
 `;
+      }
       
       const tempScript = path.join(os.tmpdir(), `gemini-auth-${Date.now()}.sh`);
       fs.writeFileSync(tempScript, scriptContent);
