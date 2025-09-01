@@ -846,9 +846,24 @@
         display: flex;
         flex-direction: column;
         /* Remove default transform - let JS handle visibility */
-        transition: transform 0.3s ease;
+        transition: width 0.3s ease, transform 0.3s ease;
         position: relative;
         height: calc(100vh - 60px); /* Full viewport height minus header */
+    }
+
+    /* Desktop: collapsed state shrinks sidebar to zero so main content expands */
+    .sidebar.collapsed {
+        width: 0 !important;
+        flex: 0 0 0 !important;
+        border-right: none !important;
+        overflow: hidden !important;
+    }
+
+    /* Hide inner sections when collapsed */
+    .sidebar.collapsed .sidebar-header,
+    .sidebar.collapsed .sidebar-content,
+    .sidebar.collapsed .sidebar-actions {
+        display: none !important;
     }
     
     
@@ -1130,6 +1145,11 @@
             height: 100%;
             z-index: 100;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            transform: translateX(-100%);
+        }
+        
+        .sidebar.open {
+            transform: translateX(0);
         }
         
 

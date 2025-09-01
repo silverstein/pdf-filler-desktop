@@ -2245,8 +2245,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Recent Files Sidebar Management
     let recentFiles = [];
-    
-    
+    let sidebarOpen = true;
+
+    function saveSidebarState() {
+        try {
+            localStorage.setItem('sidebarOpen', String(sidebarOpen));
+        } catch (e) {
+            console.warn('Unable to save sidebar state', e);
+        }
+    }
+
+    // Keep the UI in sync with screen size: on desktop collapse/expand width; on mobile slide in/out.
+    function updateSidebarState() {
+        const sidebar = document.getElementById('recentFilesSidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        if (!sidebar) return;
+
+        if (window.innerWidth <= 768) {
+            // Mobile: off-canvas
+            if (sidebarOpen) {
+                sidebar.classList.add('open');
+                if (sidebarOverlay) sidebarOverlay.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            } else {
+                sidebar.classList.remove('open');
+                if (sidebarOverlay) sidebarOverlay.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+        } else {
+            // Desktop: collapse width so main content expands
+            if (sidebarOpen) {
+                sidebar.classList.remove('collapsed');
+            } else {
+                sidebar.classList.add('collapsed');
+            }
+            // Ensure overlay and scroll state are reset for desktop
+            if (sidebarOverlay) sidebarOverlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+    }
+
+    // Optional: update any toggle button icon text (safe no-op if control absent)
+    function updateHeaderToggleIcon() {
+        const btn = document.getElementById('headerSidebarToggle');
+        if (!btn) return;
+        const icon = btn.querySelector('i[data-lucide]');
+        if (icon) {
+            icon.setAttribute('data-lucide', sidebarOpen ? 'panel-left' : 'panel-left-close');
+            if (window.lucide) window.lucide.createIcons();
+        }
+    }
+
+    function toggleSidebar() {
+        sidebarOpen = !sidebarOpen;
+        updateSidebarState();
+        updateHeaderToggleIcon();
+        saveSidebarState();
+    }
     
     // Load recent files from localStorage
     function loadRecentFilesFromStorage() {
@@ -2275,10 +2330,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Initialize sidebar on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        initializeSidebar();
-        loadRecentFiles();
-    });
+    initializeSidebar();
+    loadRecentFiles();
     
     function initializeSidebar() {
         const sidebar = document.getElementById('recentFilesSidebar');
@@ -2288,65 +2341,67 @@ document.addEventListener('DOMContentLoaded', () => {
         const mainContent = document.querySelector('.main-content');
         const clearBtn = document.getElementById('clearRecentFiles');
         const searchInput = document.getElementById('recentFilesSearch');
-        
+
         console.log('=== INITIALIZING SIDEBAR ===');
         console.log('Sidebar element found:', !!sidebar);
         console.log('Main content found:', !!mainContent);
-        
-        // Load sidebar state from localStorage
+
+        // Load sidebar state from localStorage; default: open on desktop, closed on mobile
         const savedState = localStorage.getItem('sidebarOpen');
-        console.log('initializeSidebar - savedState from localStorage:', savedState);
         if (savedState !== null) {
-            sidebarOpen = savedState === 'true';
+            sidebarOpen = (savedState === 'true');
         } else {
-            // Default to open on desktop, closed on mobile
             sidebarOpen = window.innerWidth > 768;
         }
         console.log('initializeSidebar - initial sidebarOpen:', sidebarOpen);
-        
+
+        // Apply initial state
         updateSidebarState();
         updateHeaderToggleIcon();
-        
-        // Event listeners
-        sidebarToggle.addEventListener('click', toggleSidebar);
-        mobileSidebarToggle.addEventListener('click', toggleSidebar);
-        
-        // Add header toggle listener
+
+        // Event listeners (guard against missing DOM)
+        if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
+        if (mobileSidebarToggle) mobileSidebarToggle.addEventListener('click', toggleSidebar);
         const headerSidebarToggle = document.getElementById('headerSidebarToggle');
-        if (headerSidebarToggle) {
-            headerSidebarToggle.addEventListener('click', toggleSidebar);
-        }
-        sidebarOverlay.addEventListener('click', () => {
-            if (window.innerWidth <= 768) {
-                sidebarOpen = false;
-                updateSidebarState();
-                saveSidebarState();
-            }
-        });
-        
-        // Clear recent files
-        clearBtn.addEventListener('click', async () => {
-            if (confirm('Are you sure you want to clear all recent files?')) {
-                try {
-                    if (window.electronAPI && window.electronAPI.clearRecentFiles) {
-                        await window.electronAPI.clearRecentFiles();
-                    }
-                    recentFiles = [];
-                    // Clear from localStorage as well
-                    localStorage.removeItem('recentFiles');
-                    updateRecentFilesList();
-                } catch (error) {
-                    console.error('Error clearing recent files:', error);
+        if (headerSidebarToggle) headerSidebarToggle.addEventListener('click', toggleSidebar);
+
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebarOpen = false;
+                    updateSidebarState();
+                    saveSidebarState();
                 }
-            }
-        });
-        
-        // Search functionality
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            filterRecentFiles(searchTerm);
-        });
-        
+            });
+        }
+
+        // Clear recent files (keep existing behavior, now null-safe)
+        if (clearBtn) {
+            clearBtn.addEventListener('click', async () => {
+                if (confirm('Clear all recent files history?')) {
+                    try {
+                        if (window.electronAPI && window.electronAPI.clearRecentFiles) {
+                            await window.electronAPI.clearRecentFiles();
+                        }
+                        recentFiles = [];
+                        // Clear from localStorage as well
+                        localStorage.removeItem('recentFiles');
+                        updateRecentFilesList();
+                    } catch (error) {
+                        console.error('Error clearing recent files:', error);
+                    }
+                }
+            });
+        }
+
+        // Search functionality (null-safe)
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                filterRecentFiles(searchTerm);
+            });
+        }
+
         // Handle window resize
         window.addEventListener('resize', updateSidebarState);
     }
