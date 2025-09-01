@@ -26,6 +26,7 @@ temp/
 logs/
 *.log
 app.log
+app-debug.log
 
 # OS generated
 .DS_Store
