@@ -29,7 +29,7 @@ PDF Filler Desktop is a native Electron application that provides **completely f
    - Handles rate limiting
    - Cleans output (removes "Loaded cached credentials" etc.)
 
-4. **Auth Handler** (`src/simple-auth-handler.js`)
+4. **Auth Handler** (`src/terminal-auth-handler.ts`)
    - Opens Terminal for first-time auth
    - Monitors for auth completion
    - Manages local credentials
