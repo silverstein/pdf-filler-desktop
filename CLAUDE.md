@@ -137,6 +137,68 @@ HOME=./gemini-cli-local ./gemini-cli-local/node_modules/.bin/gemini -p "test"
 
 # Build standalone app for distribution
 npm run build
+
+# Clean build (if build fails or hangs)
+rm -rf dist && npm run build
+
+# Force kill any hanging build processes
+pkill -f electron-builder || true
+pkill -f node || true
+```
+
+### Build Troubleshooting
+
+#### Common Build Issues and Solutions
+
+1. **Build hangs or times out**
+   - The build process can take 2-3 minutes, especially DMG creation
+   - If it hangs beyond 5 minutes, force clean and rebuild:
+   ```bash
+   # Kill any stuck processes
+   pkill -f electron-builder
+   pkill -f node
+   
+   # Clean and rebuild
+   rm -rf dist
+   npm run build
+   ```
+
+2. **"Directory not empty" errors**
+   - This happens when the dist folder has locked files
+   - Solution: Force remove with `rm -rf dist` before building
+
+3. **Code signing warnings**
+   - You'll see warnings about missing "Developer ID Application" identity
+   - These are safe to ignore for local builds
+   - The app will still work but may show security warnings on first launch
+
+4. **TypeScript compilation errors**
+   - Run `npx tsc --noEmit` to check for TypeScript errors before building
+   - Fix any type errors before attempting to build
+
+5. **Post-build script failures**
+   - The post-build script sets permissions and creates necessary directories
+   - If it fails, you can run it manually: `node scripts/post-build.js`
+
+### Clean Build Process
+
+For a guaranteed clean build:
+```bash
+# 1. Stop any running instances
+pkill -f "PDF Filler" || true
+
+# 2. Clean all build artifacts
+rm -rf dist
+rm -rf node_modules/.cache
+
+# 3. Ensure TypeScript compiles
+npx tsc --noEmit
+
+# 4. Build the app
+npm run build
+
+# 5. Test the built app
+open "dist/mac-arm64/PDF Filler.app"
 ```
 
 ## 🚨 CRITICAL: Electron + Gemini CLI Integration (DO NOT BREAK THIS!)

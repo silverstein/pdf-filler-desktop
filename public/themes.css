@@ -460,27 +460,6 @@
     stroke: var(--bg) !important;
 }
 
-/* Fix sidebar toggle button in Mono theme */
-.theme-mono .sidebar-toggle-btn {
-    background: transparent !important;
-    color: var(--text) !important;
-    border: none !important;
-}
-
-.theme-mono .sidebar-toggle-btn:hover {
-    background: var(--surface-hover) !important;
-}
-
-.theme-mono .sidebar-toggle-btn svg,
-.theme-mono .sidebar-toggle-btn i {
-    stroke: var(--text) !important;
-    fill: none !important;
-}
-
-.theme-mono .sidebar-toggle-btn:hover svg,
-.theme-mono .sidebar-toggle-btn:hover i {
-    stroke: var(--text) !important;
-}
 
 
  .header {
