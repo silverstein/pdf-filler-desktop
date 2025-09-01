@@ -30,18 +30,22 @@ PDF Filler Desktop is a native Electron application that provides **completely f
    - Cleans output (removes "Loaded cached credentials" etc.)
 
 4. **Auth Handler** (`src/terminal-auth-handler.ts`)
-   - Opens Terminal for first-time auth
-   - Monitors for auth completion
+   - Opens custom styled terminal window (600x400px, mono theme)
+   - Shows real-time authentication progress
+   - Auto-closes on successful authentication
    - Manages local credentials
 
 ## How It Works
 
 ### Authentication Flow
 1. User clicks "Sign in with Google"
-2. App opens Terminal with local Gemini CLI
-3. User completes OAuth in browser
-4. Credentials saved to `gemini-cli-local/.gemini/`
-5. App detects auth completion and switches to main UI
+2. App opens custom terminal window with mono theme styling
+3. Terminal window displays authentication progress in real-time
+4. Browser opens automatically for Google OAuth
+5. User completes sign-in with Google account
+6. Credentials saved to `gemini-cli-local/.gemini/`
+7. Terminal window shows success and auto-closes after 3 seconds
+8. App detects auth completion and switches to main UI
 
 ### PDF Processing
 1. User selects PDF using native file dialog (no upload needed)

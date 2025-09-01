@@ -2,6 +2,7 @@ import { shell, app } from 'electron';
 import { spawn, exec } from 'child_process';
 import path from 'path';
 import { promises as fs } from 'fs';
+import TerminalWindow from './terminal-window';
 
 interface AuthStatus {
   authenticated: boolean;
@@ -79,13 +80,37 @@ export class TerminalAuthHandler {
     console.log('localGeminiPath:', this.localGeminiPath);
     console.log('localGeminiHome:', this.localGeminiHome);
     
-    // For macOS, we'll use AppleScript to open Terminal and run gemini
-    // The gemini CLI will handle the OAuth flow when it detects no credentials
     const platform = process.platform;
     
+    // Try to use our custom terminal window first (macOS and Linux)
+    if (platform === 'darwin' || platform === 'linux') {
+      try {
+        console.log('Opening custom terminal window for authentication...');
+        
+        const terminalWindow = new TerminalWindow();
+        await terminalWindow.create();
+        
+        const success = await terminalWindow.runAuthCommand(
+          this.localGeminiPath,
+          this.localGeminiHome
+        );
+        
+        if (success) {
+          console.log('Authentication successful via custom terminal!');
+          return { success: true };
+        } else {
+          console.log('Authentication failed or timed out');
+          return { success: false, error: 'Authentication failed or timed out' };
+        }
+      } catch (error) {
+        console.error('Failed to use custom terminal window, falling back to system terminal:', error);
+        // Fall back to system terminal if custom window fails
+      }
+    }
+    
+    // Fallback to system terminal (or Windows default)
     if (platform === 'darwin') {
-      // macOS - Open Terminal app with the gemini command
-      // Using open -a Terminal with a command file is more reliable than AppleScript
+      // macOS fallback - Open Terminal app with the gemini command
       const fs = require('fs');
       const os = require('os');
       
@@ -106,7 +131,7 @@ echo "1" | '${this.localGeminiPath}'
       console.log('Opening Terminal with script:', tempScript);
       
       // Open Terminal with the script
-      exec(`open -a Terminal "${tempScript}"`, (error, stdout, stderr) => {
+      exec(`open -a Terminal "${tempScript}"`, (error, _stdout, stderr) => {
         if (error) {
           console.error('Failed to open Terminal:', error);
           console.error('stderr:', stderr);

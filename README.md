@@ -11,6 +11,7 @@ A native desktop application for PDF form filling and analysis, powered by Googl
 - 📊 **Extract Data** - Convert PDF content to structured JSON
 - 📖 **Read Full Text** - Extract complete text content from PDFs
 - 🔒 **Privacy First** - All processing happens locally
+- 🎨 **Styled Authentication** - Custom terminal window with mono theme for OAuth flow
 
 ### Form Processing
 - ✏️ **Fill Forms** - Write data back to PDFs with support for text, checkboxes, dropdowns, and more
@@ -91,8 +92,11 @@ The app will:
 ### First-Time Authentication
 
 1. Click "Sign in with Google" in the app
-2. Complete OAuth in your browser
-3. Return to the app - you're ready to go!
+2. A custom styled terminal window opens (600x400px, mono theme)
+3. The authentication process starts automatically
+4. Your browser opens for Google OAuth
+5. Sign in with your Google account
+6. The terminal window shows progress and auto-closes on success
 
 No API keys needed - just your Google account!
 
@@ -156,8 +160,8 @@ Optional, for larger suites later:
   # Outputs an AppImage under dist/
   ```
 - Authentication:
-  - Windows: opens Command Prompt for Gemini CLI OAuth.
-  - Linux: attempts common terminals (xterm/gnome-terminal/konsole) for OAuth.
+  - macOS/Linux: opens custom styled terminal window (mono theme) for OAuth flow
+  - Windows: opens Command Prompt for Gemini CLI OAuth (fallback to system terminal)
 - CI covers macOS and Windows for build + tests; Electron e2e smoke runs on macOS by default.
 
 ## 🎮 Usage

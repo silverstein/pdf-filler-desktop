@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authenticating...</title>
+    <style>
+        /* Mono theme terminal styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Geist Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
+            background: #000000;
+            color: #FFFFFF;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .header {
+            background: #000000;
+            border-bottom: 1px solid #FFFFFF;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .title {
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: -0.011em;
+        }
+
+        .status {
+            margin-left: auto;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .terminal-container {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .terminal-line {
+            margin-bottom: 2px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(2px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .prompt {
+            color: #00FF88;
+            font-weight: 500;
+        }
+
+        .output {
+            color: #FFFFFF;
+            opacity: 0.9;
+        }
+
+        .error {
+            color: #FF453A;
+        }
+
+        .success {
+            color: #00FF88;
+        }
+
+        .info {
+            color: #FFD700;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #FFFFFF;
+            animation: blink 1s infinite;
+            vertical-align: text-bottom;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .footer {
+            background: #000000;
+            border-top: 1px solid #FFFFFF;
+            padding: 8px 16px;
+            font-size: 11px;
+            opacity: 0.7;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 1px solid #FFFFFF;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #000000;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333333;
+            border: 1px solid #FFFFFF;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444444;
+        }
+
+        /* Light mode support */
+        @media (prefers-color-scheme: light) {
+            body {
+                background: #FFFFFF;
+                color: #000000;
+            }
+
+            .header {
+                background: #FFFFFF;
+                border-bottom: 1px solid #000000;
+            }
+
+            .logo {
+                border: 1px solid #000000;
+            }
+
+            .terminal-container {
+                color: #000000;
+            }
+
+            .prompt {
+                color: #00C853;
+            }
+
+            .output {
+                color: #000000;
+            }
+
+            .error {
+                color: #FF3B30;
+            }
+
+            .success {
+                color: #00C853;
+            }
+
+            .info {
+                color: #FF9500;
+            }
+
+            .cursor {
+                background: #000000;
+            }
+
+            .footer {
+                background: #FFFFFF;
+                border-top: 1px solid #000000;
+            }
+
+            .spinner {
+                border-color: #000000;
+                border-right-color: transparent;
+            }
+
+            ::-webkit-scrollbar-track {
+                background: #FFFFFF;
+            }
+
+            ::-webkit-scrollbar-thumb {
+                background: #DDDDDD;
+                border: 1px solid #000000;
+            }
+
+            ::-webkit-scrollbar-thumb:hover {
+                background: #CCCCCC;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">◈</div>
+        <div class="title">PDF Filler Authentication</div>
+        <div class="status" id="status">
+            <span class="spinner"></span>
+            <span>Initializing...</span>
+        </div>
+    </div>
+
+    <div class="terminal-container" id="terminal">
+        <div class="terminal-line">
+            <span class="prompt">$</span>
+            <span class="output">Launching Google authentication...</span>
+        </div>
+    </div>
+
+    <div class="footer">
+        <span>Powered by Google Gemini</span>
+        <span id="timer">00:00</span>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        const terminal = document.getElementById('terminal');
+        const status = document.getElementById('status');
+        const timer = document.getElementById('timer');
+        
+        let startTime = Date.now();
+        
+        // Update timer
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+            const seconds = (elapsed % 60).toString().padStart(2, '0');
+            timer.textContent = `${minutes}:${seconds}`;
+        }, 1000);
+        
+        // Add a line to the terminal
+        function addLine(text, className = 'output') {
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            
+            if (className === 'prompt') {
+                line.innerHTML = `<span class="prompt">$</span> <span class="output">${text}</span>`;
+            } else {
+                line.innerHTML = `<span class="${className}">${text}</span>`;
+            }
+            
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        // Add cursor
+        function addCursor() {
+            const cursor = document.createElement('span');
+            cursor.className = 'cursor';
+            terminal.appendChild(cursor);
+        }
+        
+        // Listen for output from main process
+        ipcRenderer.on('terminal-output', (event, data) => {
+            // Remove cursor if it exists
+            const cursor = terminal.querySelector('.cursor');
+            if (cursor) cursor.remove();
+            
+            // Clean the output
+            let text = data.toString();
+            
+            // Filter out known noise
+            if (text.includes('Loaded cached credentials')) return;
+            if (text.includes('(node:') && text.includes('DeprecationWarning')) return;
+            
+            // Style specific messages
+            if (text.includes('Please visit') || text.includes('https://')) {
+                addLine(text, 'info');
+            } else if (text.includes('Error') || text.includes('Failed')) {
+                addLine(text, 'error');
+            } else if (text.includes('Success') || text.includes('authenticated')) {
+                addLine(text, 'success');
+            } else {
+                addLine(text, 'output');
+            }
+            
+            // Add cursor back
+            addCursor();
+        });
+        
+        // Listen for status updates
+        ipcRenderer.on('status-update', (event, message) => {
+            status.innerHTML = `<span class="spinner"></span><span>${message}</span>`;
+        });
+        
+        // Listen for authentication complete
+        ipcRenderer.on('auth-complete', (event, success) => {
+            // Remove cursor
+            const cursor = terminal.querySelector('.cursor');
+            if (cursor) cursor.remove();
+            
+            if (success) {
+                addLine('', 'output');
+                addLine('✓ Authentication successful!', 'success');
+                addLine('Closing window in 3 seconds...', 'info');
+                status.innerHTML = '<span style="color: #00FF88;">✓ Authenticated</span>';
+                
+                setTimeout(() => {
+                    window.close();
+                }, 3000);
+            } else {
+                addLine('', 'output');
+                addLine('✗ Authentication failed or timed out', 'error');
+                status.innerHTML = '<span style="color: #FF453A;">✗ Failed</span>';
+            }
+        });
+        
+        // Initial cursor
+        addCursor();
+    </script>
+</body>
+</html>

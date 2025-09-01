@@ -50,6 +50,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server-filesystem": "^2025.7.29",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
     "ai": "^5.0.22",
     "ai-sdk-provider-gemini-cli": "^1.1.0",
     "archiver": "^7.0.1",
