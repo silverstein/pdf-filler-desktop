@@ -1,6 +1,6 @@
 {
   "name": "pdf-filler-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Free PDF processing powered by Gemini CLI",
   "main": "dist/electron.js",
   "scripts": {
