@@ -1,0 +1,13 @@
+# Development configuration for testing auto-updates locally
+# Place this file in the project root during development
+# This simulates an update server response for testing
+
+owner: silverstein
+repo: pdf-filler-desktop
+provider: github
+
+# For testing, you can override to use a local server:
+# updaterCacheDirName: pdf-filler-desktop-updater
+
+# Test with a specific version (change this to simulate updates)
+# currentVersion: 1.0.0

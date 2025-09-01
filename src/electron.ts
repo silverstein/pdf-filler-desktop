@@ -17,6 +17,7 @@ import TerminalAuthHandler from './terminal-auth-handler';
 import FirstRunSetup from './first-run-setup';
 import MCPManager from './mcp-manager';
 import { ensureMCPConfig } from './mcp-config-generator';
+import { updater } from './auto-updater';
 
 // Type definitions
 interface ServerStatus {
@@ -574,6 +575,26 @@ function createMenu(): void {
       label: 'Help',
       submenu: [
         {
+          label: `About PDF Filler v${app.getVersion()}`,
+          click: () => {
+            dialog.showMessageBox({
+              type: 'info',
+              title: 'About PDF Filler',
+              message: 'PDF Filler Desktop',
+              detail: `Version: ${app.getVersion()}\nFree PDF processing powered by Gemini AI\n\n© 2025 Mat Silverstein`,
+              buttons: ['OK']
+            });
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Check for Updates...',
+          click: async () => {
+            await updater.checkForUpdates();
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'Documentation',
           click: async () => {
             await shell.openExternal('https://github.com/silverstein/pdf-filler-desktop');
@@ -650,6 +671,14 @@ app.whenReady().then(async () => {
     createWindow();
     createTray();
     createMenu();
+    
+    // Set main window for updater
+    updater.setMainWindow(mainWindow);
+    
+    // Check for updates after app is ready (delayed to not block startup)
+    setTimeout(() => {
+      updater.checkForUpdatesAtStartup();
+    }, 3000);
     
     log('Application initialized successfully');
   } catch (error: any) {

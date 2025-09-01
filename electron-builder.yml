@@ -33,3 +33,10 @@ win:
 
 linux:
   target: AppImage
+
+# Publishing configuration
+publish:
+  - provider: github
+    owner: silverstein
+    repo: pdf-filler-desktop
+    releaseType: release

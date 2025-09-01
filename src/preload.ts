@@ -25,6 +25,11 @@ interface ElectronAPI {
   onProcessPDF: (callback: (filePath: string) => void) => void;
   onOpenBatchMode: (callback: () => void) => void;
   onOpenSettings: (callback: () => void) => void;
+  onUpdateStatus: (callback: (updateInfo: any) => void) => void;
+  
+  // App info
+  getAppInfo: () => Promise<any>;  
+  getUserEmail: () => Promise<string | null>;
 }
 
 // Expose protected methods that allow the renderer process to use
@@ -70,7 +75,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   onOpenSettings: (callback: () => void) => {
     ipcRenderer.on('open-settings', callback);
-  }
+  },
+  
+  // Update events
+  onUpdateStatus: (callback: (updateInfo: any) => void) => {
+    ipcRenderer.on('update-status', (event: IpcRendererEvent, updateInfo: any) => callback(updateInfo));
+  },
+  
+  // App info  
+  getAppInfo: () => ipcRenderer.invoke('get-app-info'),
+  getUserEmail: () => ipcRenderer.invoke('get-user-email')
 } as ElectronAPI);
 
 // Add type declaration for window object

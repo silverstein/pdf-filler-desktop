@@ -902,6 +902,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize
     checkAuthStatus();
     
+    // Initialize update manager
+    if (window.UpdateManager) {
+        const updateManager = new window.UpdateManager();
+        updateManager.initialize();
+    }
+    
     // Close modal when clicking outside
     document.getElementById('formFillModal').addEventListener('click', function(e) {
         if (e.target === this) {

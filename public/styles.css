@@ -1812,3 +1812,47 @@
             padding: 1rem;
         }
     }
+
+    /* Notification Styles */
+    .theme-notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: var(--bg-dark);
+        color: var(--text);
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        animation: slideInUp 0.3s ease;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .update-progress-notification {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg-dark);
+        color: var(--text);
+        padding: 16px 20px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        animation: slideInUp 0.3s ease;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    @keyframes slideInUp {
+        from {
+            transform: translateY(100%) translateX(-50%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0) translateX(-50%);
+            opacity: 1;
+        }
+    }
