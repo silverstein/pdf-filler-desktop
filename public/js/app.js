@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let isAuthenticated = false;
     let currentTheme = localStorage.getItem('selectedTheme') || 'mono';
     let currentFormFields = null;
+    // Track which provider is active for UI labeling
+    let activeProvider = 'unknown'; // 'gemini' | 'chatgpt' | 'unknown'
     let currentModalFile = null;
 
     // Toggle between main app and settings
@@ -258,11 +260,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize theme
     applyTheme(currentTheme);
 
-    // Check authentication status on load
+// Check authentication status on load
     async function checkAuthStatus() {
         if (window.electronAPI) {
-            const authStatus = await window.electronAPI.checkAuthStatus();
-            isAuthenticated = authStatus.authenticated;
+            // Prefer combined auth (Gemini OR ChatGPT)
+            const authAny = window.electronAPI.checkAnyAuth ? await window.electronAPI.checkAnyAuth() : null;
+            let authStatus = authAny || await window.electronAPI.checkAuthStatus();
+            isAuthenticated = !!(authStatus && authStatus.authenticated);
             
             if (isAuthenticated) {
                 // Get user email separately if not in authStatus
@@ -278,8 +282,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('authSection').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
                 document.getElementById('geminiStatus').style.background = 'var(--success)';
-                document.getElementById('geminiStatusText').textContent = userEmail || 'Connected';
-                document.getElementById('accountEmail').innerHTML = `<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>${userEmail || 'Connected'}</span>`;
+                // Determine active provider: prefer Codex only if Gemini not signed in
+                if (authAny && authAny.providers) {
+                    if (authAny.providers.codex && !authAny.providers.gemini) {
+                        activeProvider = 'chatgpt';
+                    } else if (authAny.providers.gemini) {
+                        activeProvider = 'gemini';
+                    } else {
+                        activeProvider = 'unknown';
+                    }
+                }
+                // Toggle ChatGPT sign-in menu item visibility based on Codex auth
+                try {
+                    const chatgptMenuBtn = document.getElementById('chatgptSignInMenu');
+                    if (chatgptMenuBtn) {
+                        chatgptMenuBtn.style.display = authAny && authAny.providers && authAny.providers.codex ? 'none' : 'flex';
+                    }
+                } catch {}
+                // Show which provider is connected (label only)
+                if (activeProvider === 'chatgpt') {
+                    document.getElementById('geminiStatusText').textContent = 'ChatGPT Connected';
+                    document.getElementById('accountEmail').innerHTML = `<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>ChatGPT Connected</span>`;
+                } else {
+                    document.getElementById('geminiStatusText').textContent = userEmail || 'Connected';
+                    document.getElementById('accountEmail').innerHTML = `<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>${userEmail || 'Connected'}</span>`;
+                }
                 lucide.createIcons();
             } else {
                 document.getElementById('authSection').style.display = 'block';
@@ -378,6 +405,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 alert('Failed to start authentication: ' + result.error);
             }
+        }
+    }
+
+    // Handle ChatGPT (Codex) Sign In
+    async function handleChatGPTSignIn() {
+        if (!window.electronAPI) return;
+        const btn = document.getElementById('chatgptSignIn');
+        if (!btn) return;
+        btn.disabled = true;
+        btn.textContent = 'Opening Terminal for authentication...';
+
+        try {
+            // Ensure bundled/installed Codex exists (optional status)
+            if (window.electronAPI.ensureCodexInstalled) {
+                await window.electronAPI.ensureCodexInstalled();
+            }
+            const result = await window.electronAPI.startChatGPTAuth();
+            if (result.success) {
+                btn.textContent = 'Complete sign-in in Terminal...';
+                const interval = setInterval(async () => {
+                    const status = await window.electronAPI.checkCodexAuth();
+                    if (status && status.installed && status.authenticated) {
+                        clearInterval(interval);
+                        btn.textContent = 'Success! Redirecting...';
+                        setTimeout(() => {
+                            checkAuthStatus();
+                        }, 1000);
+                    }
+                }, 3000);
+                // Safety timeout
+                setTimeout(() => {
+                    clearInterval(interval);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="message-circle" style="width: 20px; height: 20px; margin-right: 8px;"></i>Sign in with ChatGPT';
+                    lucide.createIcons();
+                }, 300000);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="message-circle" style="width: 20px; height: 20px; margin-right: 8px;"></i>Sign in with ChatGPT';
+                lucide.createIcons();
+                alert('Failed to start ChatGPT authentication: ' + (result.error || 'unknown error'));
+            }
+        } catch (e) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="message-circle" style="width: 20px; height: 20px; margin-right: 8px;"></i>Sign in with ChatGPT';
+            lucide.createIcons();
+            alert('Failed to start ChatGPT authentication: ' + (e.message || 'unknown error'));
         }
     }
 
@@ -541,6 +615,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function displayIntelligence(data) {
         const content = document.getElementById('intelligenceContent');
         const { summary, insights, metadata } = data;
+        const providerLabel = metadata && metadata.provider ? (metadata.provider === 'chatgpt' ? 'ChatGPT' : 'Gemini') : 'AI';
+        const modeLabel = metadata && metadata.mode ? ` · ${metadata.mode}` : '';
+        // If intelligence ran extract-first, mark Extract card as cached
+        if (metadata && metadata.mode === 'extract-first') {
+            setExtractCardCached(true);
+        }
         
         // Determine badge class based on importance
         const badgeClass = `badge-${summary.importance}`;
@@ -601,12 +681,30 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-secondary);">
-                <div style="display: flex; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span>Analysis confidence: ${metadata.confidence}%</span>
+                    <span style="opacity:0.8;">${providerLabel}${modeLabel}</span>
                     <span>Processing time: ${(metadata.processingTime / 1000).toFixed(1)}s</span>
                 </div>
             </div>
         `;
+    }
+
+    function setExtractCardCached(isCached) {
+        const card = document.querySelector('.action-card[data-action="extract"]');
+        if (!card) return;
+        const subtitle = card.querySelector('p');
+        if (isCached) {
+            card.setAttribute('data-cached', '1');
+            if (subtitle && !subtitle.textContent.includes('(cached)')) {
+                subtitle.textContent = subtitle.textContent + ' (cached)';
+            }
+        } else {
+            card.removeAttribute('data-cached');
+            if (subtitle) {
+                subtitle.textContent = 'Convert PDF content to JSON';
+            }
+        }
     }
     
     function refreshIntelligence() {
@@ -754,6 +852,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 const data = await response.json();
                 showResults(data);
+                // Mark extract card as cached if server indicates cache hit
+                if (action === 'extract') {
+                    try {
+                        const cached = response.headers.get('X-Extract-Cached');
+                        if (cached === '1') setExtractCardCached(true);
+                        else setExtractCardCached(false);
+                    } catch {}
+                }
             }
         } catch (error) {
             showError(error.message);
@@ -767,6 +873,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function showProcessing() {
         document.getElementById('processing').style.display = 'block';
+        // Update provider label dynamically
+        const label = document.getElementById('processingText');
+        if (activeProvider === 'chatgpt') {
+            label.textContent = 'Processing with ChatGPT...';
+        } else if (activeProvider === 'gemini') {
+            label.textContent = 'Processing with Gemini AI...';
+        } else {
+            label.textContent = 'Processing with AI...';
+        }
         processingStartTime = Date.now();
         
         processingTimer = setInterval(() => {
@@ -2632,6 +2747,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.signOut = signOut;
   window.switchAccount = switchAccount;
   window.handleGoogleSignIn = handleGoogleSignIn;
+  window.handleChatGPTSignIn = handleChatGPTSignIn;
   window.resetUpload = resetUpload;
   window.copyToClipboard = copyToClipboard;
   window.downloadResult = downloadResult;

@@ -278,6 +278,49 @@ export class PDFService {
   }
 
   /**
+   * Improved text extraction using pdfjs-dist when available; falls back to pdf-parse.
+   */
+  async extractFullTextPdfjs(
+    pdfPath: string,
+    password: string | null = null
+  ): Promise<TextExtractionResult> {
+    try {
+      await fs.access(pdfPath);
+      // Attempt pdf.js based extraction for better spacing/layout
+      try {
+        // Lazy import to avoid overhead if unused
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const pdfjs = require('pdfjs-dist/legacy/build/pdf.js');
+        const data = new Uint8Array(await fs.readFile(pdfPath));
+        const doc = await pdfjs.getDocument({ data, password: password || undefined }).promise;
+        const pages: string[] = [];
+        for (let i = 1; i <= doc.numPages; i++) {
+          const page = await doc.getPage(i);
+          const txt = await page.getTextContent();
+          const str = txt.items.map((it: any) => (it && it.str) ? it.str : '').join(' ');
+          pages.push(str);
+        }
+        const text = pages.join('\n\n');
+        return {
+          text,
+          pages: doc.numPages,
+          info: {},
+          metadata: {},
+          version: 'pdfjs'
+        };
+      } catch (e) {
+        // Fallback to existing pdf-parse approach
+        return await this.extractFullText(pdfPath, password);
+      }
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        throw new Error(`PDF file not found: ${pdfPath}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Validate that required fields are filled in a PDF form
    */
   async validateForm(

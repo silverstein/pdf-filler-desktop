@@ -6,6 +6,12 @@ interface ElectronAPI {
   checkAuthStatus: () => Promise<any>;
   startGoogleAuth: () => Promise<any>;
   clearAuth: () => Promise<any>;
+  
+  // Codex (ChatGPT) methods
+  ensureCodexInstalled: () => Promise<{ installed: boolean; path?: string }>;
+  checkCodexAuth: () => Promise<{ installed: boolean; authenticated: boolean; detail?: string; error?: string }>;
+  startChatGPTAuth: () => Promise<{ success: boolean; error?: string }>;
+  checkAnyAuth: () => Promise<{ authenticated: boolean; providers: { gemini: boolean; codex: boolean }; email?: string; detail?: string; error?: string }>;
   getRateLimits: () => Promise<any>;
   
   // File methods
@@ -39,6 +45,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkAuthStatus: () => ipcRenderer.invoke('check-auth-status'),
   startGoogleAuth: () => ipcRenderer.invoke('start-google-auth'),
   clearAuth: () => ipcRenderer.invoke('clear-auth'),
+  
+  // Codex methods
+  ensureCodexInstalled: () => ipcRenderer.invoke('ensure-codex-installed'),
+  checkCodexAuth: () => ipcRenderer.invoke('check-codex-auth'),
+  startChatGPTAuth: () => ipcRenderer.invoke('start-codex-auth'),
+  checkAnyAuth: () => ipcRenderer.invoke('check-any-auth'),
   getRateLimits: () => ipcRenderer.invoke('get-rate-limits'),
   
   // File methods

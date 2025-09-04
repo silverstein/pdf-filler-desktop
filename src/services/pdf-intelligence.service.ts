@@ -1,4 +1,8 @@
 import { GeminiCLIService } from './gemini-cli.service';
+import CodexCLIService from './codex-cli.service';
+import CodexAIService from './codex-ai.service';
+import { PDFService } from './pdf-service';
+import { getExtract, setExtract, getInFlight, setInFlight, clearInFlight } from './extract-cache';
 import path from 'path';
 
 // Type definitions for quick intelligence
@@ -25,6 +29,8 @@ export interface IntelligenceResult {
     analyzedAt: string;
     processingTime: number;
     confidence: number;
+    provider?: 'gemini' | 'chatgpt';
+    mode?: 'codex-structured' | 'codex-short' | 'heuristic' | 'gemini' | 'extract-first';
   };
 }
 
@@ -34,10 +40,16 @@ export interface IntelligenceResult {
  */
 export class PDFIntelligenceService {
   private gemini: GeminiCLIService;
+  private codex: CodexCLIService;
+  private pdf: PDFService;
+  private codexAI: CodexAIService;
   private cache: Map<string, IntelligenceResult>;
 
   constructor() {
     this.gemini = new GeminiCLIService();
+    this.codex = new CodexCLIService();
+    this.pdf = new PDFService();
+    this.codexAI = new CodexAIService();
     this.cache = new Map();
   }
 
@@ -46,42 +58,240 @@ export class PDFIntelligenceService {
    */
   async getQuickIntelligence(pdfPath: string): Promise<IntelligenceResult> {
     const startTime = Date.now();
+    // Unified overall budget: default 120s (configurable via INTEL_BUDGET_MS)
+    const budgetMs = Number(process.env.INTEL_BUDGET_MS || 120000);
     const absolutePath = path.resolve(pdfPath);
     
-    // Check cache first
-    const cacheKey = `${absolutePath}_${Date.now() / 1000 / 60 / 5 | 0}`; // 5-minute cache
+    // Check cache first (5-minute window)
+    const cacheKey = `${absolutePath}_${Date.now() / 1000 / 60 / 5 | 0}`;
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!;
     }
 
+    const remaining = () => budgetMs - (Date.now() - startTime);
+    const log = (...args: any[]) => {
+      try {
+        const elapsed = Date.now() - startTime;
+        console.log(`[Intelligence +${elapsed}ms]`, ...args);
+      } catch {}
+    };
+    const timing: Record<string, number> = {};
+
     try {
-      // Get both summary and insights in parallel for speed
+      // Prefer a single Codex pass when ChatGPT is authenticated and Gemini is not
+      const [codexOk, geminiOk] = await Promise.all([
+        this.codex.checkAuthStatus(),
+        this.gemini.checkAuthStatus()
+      ]);
+
+      if (codexOk && !geminiOk) {
+        const quickOnly = process.env.INTEL_QUICK_ONLY === '1' || budgetMs <= 45000;
+        log('Using Codex (ChatGPT) extract-first', quickOnly ? '(quick-only)' : '');
+
+        // 1) Local PDF text + fields (fast)
+        const tReadStart = Date.now();
+        const textData = await this.pdf.extractFullTextPdfjs(absolutePath);
+        let fields: any[] = [];
+        try { fields = await this.pdf.readFormFields(absolutePath); } catch {}
+        timing.readMs = Date.now() - tReadStart;
+        log(`readText+fieldsMs=${timing.readMs}`);
+
+        // QUICK MODE: skip extract for predictable sub-45s latency
+        if (quickOnly) {
+          try {
+            const limited = this.preprocessTextForIntelligence(textData.text || '', 9000);
+            const codexPrompt = `Return ONLY valid JSON: {"summary":{"title":"...","description":"...","category":"tax|legal|financial|business|personal|other","importance":"critical|high|medium|low","processingTips":["...","..."]},"insights":{"documentType":"...","completeness":0-100,"keyInsights":["...","..."],"nextActions":["...","..."],"warnings":[]}}\nText:\n${limited}`;
+            const tSummarizeStart = Date.now();
+            const raw = await this.codex.callCodex(codexPrompt, { timeoutMs: Math.min(25000, Math.max(8000, remaining())) });
+            timing.summarizeMs = Date.now() - tSummarizeStart;
+            log(`summarizeMs=${timing.summarizeMs}`);
+            const parsed = this.parseJSONFromLLM(raw);
+            if (parsed && parsed.summary && parsed.insights) {
+              const s = this.normalizeSummary(parsed.summary);
+              let i = this.normalizeInsights(parsed.insights);
+              if (fields && fields.length) i.completeness = this.computeFormCompleteness(fields);
+              const combined: IntelligenceResult = {
+                summary: s,
+                insights: i,
+                metadata: {
+                  analyzedAt: new Date().toISOString(),
+                  processingTime: Date.now() - startTime,
+                  confidence: this.calculateConfidence(s, i),
+                  provider: 'chatgpt',
+                  mode: 'codex-short'
+                }
+              };
+              this.cache.set(cacheKey, combined);
+              return combined;
+            }
+          } catch {}
+          const quick = this.quickHeuristicIntelligence(absolutePath, textData.text || '', fields, Date.now() - startTime);
+          quick.metadata.provider = 'chatgpt';
+          quick.metadata.mode = 'heuristic';
+          this.cache.set(cacheKey, quick);
+          return quick;
+        }
+
+        // 2) extract-first: prefer cached, else attach to in-flight, else start new extraction with unified timeout
+        let extractObj: any | null | undefined = getExtract(absolutePath)?.data;
+
+        if (extractObj) {
+          log('extract cache hit');
+        } else {
+          const attached = getInFlight(absolutePath);
+          if (attached) {
+            log('attach to in-flight extract');
+            try {
+              extractObj = await attached;
+            } catch {
+              extractObj = null;
+            }
+          }
+        }
+
+        if (!extractObj) {
+          const rem = remaining();
+          // Leave a small tail budget; unify per-step timeout up to 120s (configurable)
+          const maxExtract = Number(process.env.INTEL_EXTRACT_TIMEOUT_MS || 120000);
+          const timeoutForExtract = Math.min(maxExtract, Math.max(10000, rem - 3000));
+          if (timeoutForExtract <= 3000) {
+            log('skip extract (insufficient remaining budget)');
+          } else {
+            log(`start extract (timeoutMs=${timeoutForExtract})`);
+            const p = this.codexAI.extractFromText(textData.text || '', undefined, { timeoutMs: timeoutForExtract });
+            setInFlight(absolutePath, p);
+            const tExtractStart = Date.now();
+            try {
+              extractObj = await p;
+              timing.extractMs = Date.now() - tExtractStart;
+              log(`extractMs=${timing.extractMs}`);
+            } catch (e: any) {
+              timing.extractMs = Date.now() - tExtractStart;
+              log(`extract failed after ${timing.extractMs}ms:`, e?.message || e);
+              extractObj = null;
+            } finally {
+              clearInFlight(absolutePath);
+            }
+            if (extractObj) {
+              setExtract(absolutePath, { data: extractObj, at: Date.now(), provider: 'chatgpt' });
+            }
+          }
+        }
+
+        // 3) On success, deterministically summarize from extract (guarantees specificity)
+        if (extractObj) {
+          const tBuildStart = Date.now();
+          const result = this.buildIntelligenceFromExtract(absolutePath, extractObj, fields, Date.now() - startTime);
+          timing.buildMs = Date.now() - tBuildStart;
+          log(`buildIntelligenceMs=${timing.buildMs}`);
+          log('Timing summary:', timing);
+          // Ensure consistent provider/mode
+          result.metadata.provider = 'chatgpt';
+          result.metadata.mode = 'extract-first';
+          this.cache.set(cacheKey, result);
+          return result;
+        }
+
+        // 4) If extract failed or timed out, try a short summarize path
+        try {
+          const limited = this.preprocessTextForIntelligence(textData.text || '', 9000);
+          const codexPrompt = `Return ONLY valid JSON: {"summary":{"title":"...","description":"...","category":"tax|legal|financial|business|personal|other","importance":"critical|high|medium|low","processingTips":["...","..."]},"insights":{"documentType":"...","completeness":0-100,"keyInsights":["...","..."],"nextActions":["...","..."],"warnings":[]}}\nText:\n${limited}`;
+          const tFallbackStart = Date.now();
+          const raw = await this.codex.callCodex(codexPrompt, { timeoutMs: Math.min(25000, Math.max(8000, remaining())) });
+          timing.fallbackMs = Date.now() - tFallbackStart;
+          log(`fallbackSummarizeMs=${timing.fallbackMs}`);
+          const parsed = this.parseJSONFromLLM(raw);
+          if (parsed && parsed.summary && parsed.insights) {
+            const s = this.normalizeSummary(parsed.summary);
+            let i = this.normalizeInsights(parsed.insights);
+            if (fields && fields.length) i.completeness = this.computeFormCompleteness(fields);
+            const combined: IntelligenceResult = {
+              summary: s,
+              insights: i,
+              metadata: {
+                analyzedAt: new Date().toISOString(),
+                processingTime: Date.now() - startTime,
+                confidence: this.calculateConfidence(s, i),
+                provider: 'chatgpt',
+                mode: 'codex-short'
+              }
+            };
+            this.cache.set(cacheKey, combined);
+            return combined;
+          }
+        } catch {}
+
+        // 5) Heuristic fallback
+        const quick = this.quickHeuristicIntelligence(absolutePath, textData.text || '', fields, Date.now() - startTime);
+        quick.metadata.provider = 'chatgpt';
+        quick.metadata.mode = 'heuristic';
+        this.cache.set(cacheKey, quick);
+        return quick;
+      }
+
+      // Gemini path unchanged
       const [summary, insights] = await Promise.all([
         this.getDocumentSummary(absolutePath),
         this.getQuickInsights(absolutePath)
       ]);
 
-      const result: IntelligenceResult = {
+      let result: IntelligenceResult = {
         summary,
         insights,
         metadata: {
           analyzedAt: new Date().toISOString(),
           processingTime: Date.now() - startTime,
-          confidence: this.calculateConfidence(summary, insights)
+          confidence: this.calculateConfidence(summary, insights),
+          provider: 'gemini',
+          mode: 'gemini'
         }
       };
 
-      // Cache the result
+      // Quality gate (Codex refine only if Gemeni unavailable; keep provider/mode consistent if used)
+      const maybeWeak = (
+        (!summary?.title || summary.title === 'Document') &&
+        (insights?.keyInsights?.length || 0) < 2
+      );
+      if (maybeWeak) {
+        try {
+          const codexOk2 = await this.codex.checkAuthStatus();
+          const geminiOk2 = await this.gemini.checkAuthStatus();
+          if (codexOk2 && !geminiOk2) {
+            const textData = await this.pdf.extractFullTextPdfjs(absolutePath);
+            const limited = (textData.text || '').slice(0, 14000);
+            const refinePrompt = `You are improving a weak analysis for a PDF. Here is the extracted text (truncated):\n\n${limited}\n\n` +
+              `Return ONLY valid JSON with:\n` +
+              `{"summary":{"title":"...","description":"...","category":"tax|legal|financial|business|personal|other","importance":"critical|high|medium|low","processingTips":["...","..."]},` +
+              `"insights":{"documentType":"...","completeness":0-100,"keyInsights":["...","...","..."],"nextActions":["...","..."],"warnings":[]}}`;
+            const raw = await this.codex.callCodex(refinePrompt);
+            const parsed = this.parseJSONFromLLM(raw);
+            if (parsed && parsed.summary && parsed.insights) {
+              const s2 = this.normalizeSummary(parsed.summary);
+              const i2 = this.normalizeInsights(parsed.insights);
+              result = {
+                summary: s2,
+                insights: i2,
+                metadata: {
+                  analyzedAt: new Date().toISOString(),
+                  processingTime: Date.now() - startTime,
+                  confidence: this.calculateConfidence(s2, i2),
+                  provider: 'chatgpt',
+                  mode: 'codex-short'
+                }
+              };
+            }
+          }
+        } catch {}
+      }
+
+      // Cache and return
       this.cache.set(cacheKey, result);
-      
-      // Clean old cache entries
       if (this.cache.size > 100) {
         const firstKey = this.cache.keys().next().value;
         if (firstKey) {
           this.cache.delete(firstKey);
         }
       }
-
       return result;
     } catch (error: any) {
       console.error('Intelligence analysis failed:', error);
@@ -111,20 +321,37 @@ Return ONLY a JSON object like this:
 }`;
 
     try {
-      // Use Pro model for better reasoning in intelligence analysis
-      const response = await this.gemini.callGemini(prompt, true);
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          title: parsed.title || 'Document',
-          description: parsed.description || 'Document for processing',
-          category: parsed.category || 'other',
-          importance: parsed.importance || 'medium',
-          processingTips: parsed.processingTips || []
-        };
+      // Prefer Codex when authenticated and Gemini is not
+      const [codexOk, geminiOk] = await Promise.all([
+        this.codex.checkAuthStatus(),
+        this.gemini.checkAuthStatus()
+      ]);
+
+      let response: string;
+      if (codexOk && !geminiOk) {
+        // Try structured extract -> summarize path
+        const textData = await this.pdf.extractFullTextPdfjs(pdfPath);
+        const extract = await this.codexAI.extractFromText(textData.text || '');
+        if (extract) {
+          const obj = await this.codexAI.generateIntelligenceFromExtract(extract);
+          if (obj && obj.summary) return this.normalizeSummary(obj.summary);
+        }
+        // Fallback to summarize from text
+        let fields: any[] = [];
+        try { fields = await this.pdf.readFormFields(pdfPath); } catch {}
+        const aiObj = await this.codexAI.generateIntelligenceFromText(textData.text || '', fields);
+        if (aiObj && aiObj.summary) return this.normalizeSummary(aiObj.summary);
+        // Final fallback via CLI prompt
+        const limited = (textData.text || '').slice(0, 12000);
+        const codexPrompt = `You are analyzing a PDF. Here is the extracted text (truncated if long):\n\n${limited}\n\n` +
+          `Return ONLY valid JSON with keys: { "title": "...", "description": "...", "category": "tax|legal|financial|business|personal|other", "importance": "critical|high|medium|low", "processingTips": ["...","..."] }.`;
+        response = await this.codex.callCodex(codexPrompt);
+      } else {
+        // Use Pro model for better reasoning in intelligence analysis
+        response = await this.gemini.callGemini(prompt, true);
       }
+      const parsed = this.parseJSONFromLLM(response);
+      if (parsed) return this.normalizeSummary(parsed);
     } catch (error) {
       console.error('Failed to get document summary:', error);
     }
@@ -146,42 +373,48 @@ Return ONLY a JSON object like this:
 
 Read the document and tell me:
 1. The specific type of document (be precise)
-2. Estimate what percentage of the document is filled out (0-100)
+2. Estimate what percentage of the document is filled out (0-100 as a number)
 3. List 3-5 key facts or important data points from the document
 4. Suggest 2-3 immediate actions the user should take
 5. Note any warnings or issues you see
 
-Format your response as JSON only:
+Return ONLY valid JSON:
 {
   "documentType": "specific document name",
   "completeness": 85,
-  "keyInsights": [
-    "Key fact or data point 1",
-    "Key fact or data point 2",
-    "Key fact or data point 3"
-  ],
-  "nextActions": [
-    "Action 1",
-    "Action 2"
-  ],
+  "keyInsights": ["..."],
+  "nextActions": ["..."],
   "warnings": []
 }`;
 
     try {
-      // Use Pro model for better reasoning in intelligence analysis
-      const response = await this.gemini.callGemini(prompt, true);
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          documentType: parsed.documentType || 'Unknown Document',
-          completeness: parsed.completeness || 0,
-          keyInsights: parsed.keyInsights || [],
-          nextActions: parsed.nextActions || [],
-          warnings: parsed.warnings || []
-        };
+      const [codexOk, geminiOk] = await Promise.all([
+        this.codex.checkAuthStatus(),
+        this.gemini.checkAuthStatus()
+      ]);
+      let response: string;
+      if (codexOk && !geminiOk) {
+        const textData = await this.pdf.extractFullTextPdfjs(pdfPath);
+        let fields: any[] = [];
+        try { fields = await this.pdf.readFormFields(pdfPath); } catch {}
+        const aiObj = await this.codexAI.generateIntelligenceFromText(textData.text || '', fields);
+        if (aiObj && aiObj.insights) {
+          let ins = this.normalizeInsights(aiObj.insights);
+          // Override completeness deterministically if fields exist
+          if (fields && fields.length) ins.completeness = this.computeFormCompleteness(fields);
+          return ins;
+        }
+        // Fallback
+        const limited = (textData.text || '').slice(0, 12000);
+        const codexPrompt = `Given this PDF text (truncated if long):\n\n${limited}\n\n` +
+          `Return ONLY valid JSON with: { "documentType": "...", "completeness": 0-100, "keyInsights": ["..."], "nextActions": ["..."], "warnings": [] }.`;
+        response = await this.codex.callCodex(codexPrompt);
+      } else {
+        // Use Pro model for better reasoning in intelligence analysis
+        response = await this.gemini.callGemini(prompt, true);
       }
+      const parsed = this.parseJSONFromLLM(response);
+      if (parsed) return this.normalizeInsights(parsed);
     } catch (error) {
       console.error('Failed to get quick insights:', error);
     }
@@ -290,6 +523,280 @@ Return ONLY a JSON object:
   }
 
   /**
+   * Best-effort JSON extraction from LLM output.
+   */
+  private parseJSONFromLLM(output: string): any | null {
+    try {
+      if (!output) return null;
+      // Prefer fenced blocks
+      const fence = output.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      let text = fence ? fence[1] : output;
+      // Sanitize common issues
+      text = text.replace(/\bTrue\b/g, 'true').replace(/\bFalse\b/g, 'false').replace(/\bNone\b/g, 'null');
+      text = text.replace(/<\s*0-100\s*>/g, '0');
+      // Try direct curly extraction with brace balancing
+      let start = text.indexOf('{');
+      if (start === -1) return null;
+      let depth = 0; let inStr = false; let esc = false; let end = -1;
+      for (let i = start; i < text.length; i++) {
+        const ch = text[i];
+        if (inStr) {
+          if (esc) { esc = false; continue; }
+          if (ch === '\\') { esc = true; continue; }
+          if (ch === '"') inStr = false;
+          continue;
+        }
+        if (ch === '"') { inStr = true; continue; }
+        if (ch === '{') depth++;
+        if (ch === '}') {
+          depth--;
+          if (depth === 0) { end = i; break; }
+        }
+      }
+      const jsonStr = end !== -1 ? text.slice(start, end + 1) : text;
+      return JSON.parse(jsonStr);
+    } catch {
+      return null;
+    }
+  }
+
+  private normalizeSummary(parsed: any): DocumentSummary {
+    const pickImportance = (v: any): 'critical'|'high'|'medium'|'low' => {
+      const s = String(v || '').toLowerCase();
+      if (s.includes('|')) return 'medium';
+      if (s.includes('critical')) return 'critical';
+      if (s.includes('high')) return 'high';
+      if (s.includes('low')) return 'low';
+      if (s.includes('medium')) return 'medium';
+      return 'medium';
+    };
+    const pickCategory = (v: any): string => {
+      const s = String(v || '').toLowerCase();
+      const allowed = ['tax','legal','financial','business','personal','other'];
+      for (const a of allowed) if (s.includes(a)) return a;
+      if (s.includes('|')) return 'other';
+      return s || 'other';
+    };
+    const clean = (s: any): string => {
+      const t = String(s || '').trim();
+      if (!t || t === '...' || t === '—' || t === '-') return '';
+      return t;
+    };
+    return {
+      title: clean(parsed?.title) || 'Document',
+      description: clean(parsed?.description) || 'Document ready for processing',
+      category: pickCategory(parsed?.category),
+      importance: pickImportance(parsed?.importance),
+      processingTips: Array.isArray(parsed?.processingTips)
+        ? parsed.processingTips.map(clean).filter(Boolean)
+        : []
+    };
+  }
+
+  private normalizeInsights(parsed: any): QuickInsights {
+    const clean = (s: any): string => {
+      const t = String(s || '').trim();
+      if (!t || t === '...' || t.toLowerCase() === 'tip1' || t.toLowerCase() === 'tip2') return '';
+      return t;
+    };
+    let completeness = parsed?.completeness;
+    if (typeof completeness === 'string') completeness = parseInt(completeness.replace(/[^0-9]/g,''), 10);
+    if (!Number.isFinite(completeness)) completeness = 0;
+    completeness = Math.max(0, Math.min(100, completeness));
+    return {
+      documentType: clean(parsed?.documentType) || 'Document',
+      completeness,
+      keyInsights: Array.isArray(parsed?.keyInsights) ? parsed.keyInsights.map(clean).filter(Boolean) : [],
+      nextActions: Array.isArray(parsed?.nextActions) ? parsed.nextActions.map(clean).filter(Boolean) : [],
+      warnings: Array.isArray(parsed?.warnings) ? parsed.warnings.map(clean).filter(Boolean) : []
+    };
+  }
+
+  private computeFormCompleteness(fields: any[]): number {
+    if (!Array.isArray(fields) || fields.length === 0) return 0;
+    const isFilled = (f: any): boolean => {
+      const type = String(f?.type || '').toLowerCase();
+      const v = f?.value;
+      if (v === null || v === undefined) return false;
+      switch (type) {
+        case 'text': return String(v).trim().length > 0;
+        case 'checkbox': return v === true;
+        case 'radio':
+        case 'dropdown': return String(v).trim().length > 0;
+        default: return String(v).trim().length > 0;
+      }
+    };
+    const filled = fields.reduce((acc: number, f: any) => acc + (isFilled(f) ? 1 : 0), 0);
+    return Math.round((filled / fields.length) * 100);
+  }
+
+  private buildIntelligenceFromExtract(pdfPath: string, extractObj: any, fields: any[], processingMs: number): IntelligenceResult {
+    // Flatten keys for pattern detection
+    const flat: Array<{ path: string; value: any }> = [];
+    const walk = (obj: any, pfx: string[] = []) => {
+      if (!obj || typeof obj !== 'object') return;
+      for (const [k, v] of Object.entries(obj)) {
+        const np = [...pfx, k];
+        if (v && typeof v === 'object' && !Array.isArray(v)) walk(v, np);
+        else flat.push({ path: np.join('.'), value: v });
+      }
+    };
+    walk(extractObj);
+    const findVal = (keys: string[]): string => {
+      const lc = keys.map(k => k.toLowerCase());
+      for (const { path, value } of flat) {
+        const p = path.toLowerCase();
+        if (lc.some(k => p.includes(k))) {
+          const s = String(value ?? '').trim();
+          if (s) return s;
+        }
+      }
+      return '';
+    };
+    const findAll = (keys: string[]): string[] => {
+      const out: string[] = [];
+      const lc = keys.map(k => k.toLowerCase());
+      for (const { path, value } of flat) {
+        const p = path.toLowerCase();
+        if (lc.some(k => p.includes(k))) {
+          const s = String(value ?? '').trim();
+          if (s) out.push(s);
+        }
+      }
+      return Array.from(new Set(out));
+    };
+
+    // Detect category and title
+    const text = JSON.stringify(extractObj).toLowerCase();
+    const has = (s: string) => text.includes(s);
+    let category: 'tax'|'legal'|'financial'|'business'|'personal'|'other' = 'other';
+    let title = 'Document';
+    if (has('trust') || has('executor') || has('guardianship') || has('will')) {
+      category = 'legal';
+      title = has('will') ? 'Last Will and Testament' : (has('trust') ? 'Revocable Living Trust (Estate Plan)' : 'Estate Plan');
+    } else if (has('irs') || has('schedule') || has('1040') || has('k-1')) {
+      category = 'tax';
+      title = 'Tax Form';
+    } else if (has('invoice') || has('statement') || has('account')) {
+      category = 'financial';
+      title = 'Financial Statement';
+    }
+
+    // Pull specific signals
+    const trustName = findVal(['trust.name','trust_title','revocable trust','trust_name']);
+    const executor = findVal(['will.executor.primary','executor.name','executor.primary']);
+    const altExecutor = findVal(['will.executor.alternate','alternate_executor','executor.alternate']);
+    const successorTrustee = findVal(['successor_trustee','trust.successor_trustee','trustee.successor']);
+    const primaryGuardian = findVal(['guardianship.primary_guardian','guardian.primary']);
+    const alternateGuardian = findVal(['guardianship.alternate_guardian','guardian.alternate']);
+    const preparedDate = findVal(['prepared_date','date_prepared','document_date']);
+    const donations = findAll(['charitable','donation','charitable_donation']);
+    const distributions = findAll(['distribution','beneficiaries','bequest']);
+    const amounts = findAll(['amount','$','total','value']).filter(s => /\$?\d/.test(s)).slice(0,3);
+
+    // Build key insights
+    const keyInsights: string[] = [];
+    if (trustName) keyInsights.push(`Trust: ${trustName}`);
+    if (executor) keyInsights.push(`Executor: ${executor}${altExecutor ? `; Alternate: ${altExecutor}` : ''}`);
+    if (successorTrustee) keyInsights.push(`Successor trustee: ${successorTrustee}`);
+    if (primaryGuardian) keyInsights.push(`Guardian: ${primaryGuardian}${alternateGuardian ? `; Alternate: ${alternateGuardian}` : ''}`);
+    if (preparedDate) keyInsights.push(`Prepared on ${preparedDate}`);
+    if (donations.length) keyInsights.push(`Charitable donation noted (${donations[0]})`);
+    if (distributions.length) keyInsights.push('Distributions/beneficiaries specified');
+    if (!keyInsights.length) keyInsights.push('Core roles and sections detected');
+
+    // Actions and tips from signals
+    const nextActions: string[] = [];
+    if (!altExecutor && executor) nextActions.push('Fill in an alternate executor');
+    if (!alternateGuardian && primaryGuardian) nextActions.push('Name an alternate guardian');
+    if (preparedDate) nextActions.push('Review every 3 years or after major life events');
+    if (category === 'legal') nextActions.push('Share copies with executor, trustee, and guardians');
+    if (!nextActions.length) nextActions.push('Review the document for accuracy');
+
+    const processingTips: string[] = [];
+    if (category === 'legal') {
+      processingTips.push('Confirm names and roles (executor/trustee/guardian)');
+      processingTips.push('Store originals safely; share copies with named parties');
+    }
+
+    const importance: 'critical'|'high'|'medium'|'low' = (category === 'legal' || category === 'tax') ? 'high' : 'medium';
+    const description = category === 'legal' ? 'Legal document related to estate planning' : (category === 'tax' ? 'Tax-related form' : 'Document ready for processing');
+    let completeness = 0;
+    if (fields && fields.length) completeness = this.computeFormCompleteness(fields);
+
+    const summary: DocumentSummary = { title, description, category, importance, processingTips };
+    const insights: QuickInsights = { documentType: title, completeness, keyInsights, nextActions, warnings: [] };
+    return {
+      summary,
+      insights,
+      metadata: {
+        analyzedAt: new Date().toISOString(),
+        processingTime: processingMs,
+        confidence: this.calculateConfidence(summary, insights),
+        provider: 'chatgpt',
+        mode: 'extract-first'
+      }
+    };
+  }
+
+  private quickHeuristicIntelligence(pdfPath: string, text: string, fields: any[], processingMs: number = 0): IntelligenceResult {
+    const t = `${path.basename(pdfPath)}\n${text}`.toLowerCase();
+    const has = (s: string) => t.includes(s);
+    let category: 'tax'|'legal'|'financial'|'business'|'personal'|'other' = 'other';
+    let title = 'Document';
+    const tips: string[] = [];
+    if (has('estate') || has('trust') || has('will') || has('executor') || has('guardianship')) {
+      category = 'legal';
+      title = has('will') ? 'Last Will and Testament' : (has('trust') ? 'Revocable Living Trust (Estate Plan)' : 'Estate Plan');
+      tips.push('Confirm names and roles (executor/trustee/guardian)');
+      tips.push('Store originals safely; share copies with named parties');
+    } else if (has('irs') || has('1040') || has('schedule') || has('k-1') || has('form ')) {
+      category = 'tax';
+      title = 'Tax Form';
+      tips.push('Verify SSN/EIN and filing year');
+      tips.push('Check signatures and required attachments');
+    } else if (has('invoice') || has('statement') || has('account') || has('balance')) {
+      category = 'financial';
+      title = 'Financial Statement';
+      tips.push('Verify amounts, dates, and account identifiers');
+    }
+    const desc = category === 'legal'
+      ? 'Legal document related to estate planning'
+      : category === 'tax'
+      ? 'Tax-related government form'
+      : category === 'financial'
+      ? 'Financial record or statement'
+      : 'Document ready for processing';
+    const importance: 'critical'|'high'|'medium'|'low' = category === 'legal' || category === 'tax' ? 'high' : 'medium';
+    const completeness = fields && fields.length ? this.computeFormCompleteness(fields) : 0;
+    const insights: QuickInsights = {
+      documentType: title,
+      completeness,
+      keyInsights: [],
+      nextActions: tips.length ? tips.slice(0,2) : ['Review the document'],
+      warnings: []
+    };
+    const summary: DocumentSummary = {
+      title,
+      description: desc,
+      category,
+      importance,
+      processingTips: tips
+    };
+    return {
+      summary,
+      insights,
+      metadata: {
+        analyzedAt: new Date().toISOString(),
+        processingTime: processingMs,
+        confidence: this.calculateConfidence(summary, insights),
+        provider: 'chatgpt',
+        mode: 'heuristic'
+      }
+    };
+  }
+
+  /**
    * Fallback intelligence when analysis fails
    */
   private getFallbackIntelligence(): IntelligenceResult {
@@ -314,6 +821,25 @@ Return ONLY a JSON object:
         confidence: 0
       }
     };
+  }
+
+  /**
+   * Preprocess text to reduce tokens: remove duplicates, collapse whitespace
+   */
+  private preprocessTextForIntelligence(text: string, maxChars: number): string {
+    const lines = text.split(/\r?\n/);
+    const seen = new Set<string>();
+    const dedupedLines: string[] = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim().replace(/\s+/g, ' ');
+      if (trimmed && !seen.has(trimmed)) {
+        seen.add(trimmed);
+        dedupedLines.push(trimmed);
+      }
+    }
+    
+    return dedupedLines.join('\n').slice(0, maxChars);
   }
 
   /**

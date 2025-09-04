@@ -56,6 +56,16 @@ cd pdf-filler-desktop
 npm install
 ```
 
+### Build Prerequisites (for developers)
+
+- Bundled Codex CLI: the packaged app includes a Codex binary so end users do not need Node/npm.
+  - Ensure Codex is installed and on PATH on the build machine before running `npm run build`.
+  - Verify with `codex --version` and `which codex` (e.g., `/Users/you/.local/bin/codex`).
+  - The prebuild step (`scripts/prepare-codex.js`) copies the resolved binary into `codex-cli-local/bin/codex` so electron-builder bundles it (see `electron-builder.yml`).
+  - If PATH is unusual, run the build from the shell where `which codex` resolves.
+- Gemini CLI is already handled via `gemini-cli-local/` and a post-build copy.
+- Build on a machine that matches the release target architecture (e.g., Apple Silicon for macOS arm64).
+
 ### Configuration (Optional)
 
 **Most users don't need any configuration!** The app works out of the box for:

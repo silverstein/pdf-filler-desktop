@@ -47,6 +47,10 @@
                             <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
                             <span>Switch Account</span>
                         </button>
+                        <button id="chatgptSignInMenu" class="account-menu-item" onclick="handleChatGPTSignIn()">
+                            <i data-lucide="message-circle" style="width: 16px; height: 16px;"></i>
+                            <span>Sign in with ChatGPT</span>
+                        </button>
                     </div>
                 </div>
                 <div class="status-indicator">
@@ -105,6 +109,11 @@
                         <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
                     </svg>
                     Sign in with Google
+</button>
+                
+                <button id="chatgptSignIn" class="google-signin-btn" style="margin-top: 0.75rem; display: inline-flex; align-items: center;" onclick="handleChatGPTSignIn()">
+                    <i data-lucide="message-circle" style="width: 20px; height: 20px; margin-right: 8px;"></i>
+                    Sign in with ChatGPT
                 </button>
                 
                 <div class="auth-info">
@@ -233,7 +242,7 @@
 
             <div class="processing" id="processing">
                 <div class="spinner"></div>
-                <p id="processingText">Processing with Gemini AI...</p>
+                <p id="processingText">Processing with AI...</p>
                 <small style="display: block; margin-top: 10px;">
                     This may take 30-60 seconds for complex PDFs
                 </small>

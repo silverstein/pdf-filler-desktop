@@ -55,7 +55,86 @@ export class TerminalWindow {
     
     return this.window;
   }
-  
+
+  async runScript(scriptContent: string, options?: { env?: Record<string, string>; cwd?: string; title?: string }): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (!this.window) {
+        resolve(false);
+        return;
+      }
+
+      if (options?.title && !this.window.isDestroyed()) {
+        this.window.setTitle(options.title);
+      }
+
+      this.window.webContents.send('status-update', 'Starting...');
+
+      const os = require('os');
+      const tempScript = path.join(os.tmpdir(), `codex-auth-${Date.now()}.sh`);
+      fs.writeFileSync(tempScript, scriptContent);
+      fs.chmodSync(tempScript, '755');
+
+      const env = {
+        ...process.env,
+        ...(options?.env || {})
+      } as Record<string, string>;
+
+      this.authProcess = spawn('/bin/bash', [tempScript], {
+        env,
+        cwd: options?.cwd || process.cwd()
+      });
+
+      this.authProcess.stdout.on('data', (data: Buffer) => {
+        if (this.window && !this.window.isDestroyed()) {
+          const out = data.toString();
+          this.window.webContents.send('terminal-output', out);
+          if (/http:\/\/localhost:1455|Please visit|Open this URL/i.test(out)) {
+            this.window.webContents.send('status-update', 'Opening browser for ChatGPT login...');
+          }
+          if (/success|authenticated|ready/i.test(out)) {
+            this.window.webContents.send('status-update', 'Authentication successful!');
+          }
+        }
+      });
+
+      this.authProcess.stderr.on('data', (data: Buffer) => {
+        if (this.window && !this.window.isDestroyed()) {
+          const err = data.toString();
+          if (!err.includes('DeprecationWarning') && !err.includes('node:')) {
+            this.window.webContents.send('terminal-output', err);
+          }
+        }
+      });
+
+      this.authProcess.on('close', (code: number) => {
+        setTimeout(() => {
+          try { fs.unlinkSync(tempScript); } catch {}
+        }, 1000);
+        const success = code === 0;
+        if (this.window && !this.window.isDestroyed()) {
+          this.window.webContents.send('auth-complete', success);
+          if (success) {
+            setTimeout(() => {
+              if (this.window && !this.window.isDestroyed()) this.window.close();
+            }, 3000);
+          }
+        }
+        resolve(success);
+      });
+
+      // Timeout safeguard (5 minutes)
+      setTimeout(() => {
+        if (this.authProcess && !this.authProcess.killed) {
+          this.authProcess.kill();
+          if (this.window && !this.window.isDestroyed()) {
+            this.window.webContents.send('auth-complete', false);
+          }
+          resolve(false);
+        }
+      }, 300000);
+    });
+  }
+
   async runAuthCommand(geminiPath: string, geminiHome: string): Promise<boolean> {
     return new Promise((resolve) => {
       if (!this.window) {

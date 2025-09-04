@@ -7,6 +7,7 @@ files:
   - dist/**/*
   - public/**/*
   - gemini-cli-local/**/*
+  - codex-cli-local/**/*
   - "!gemini-cli-local/.gemini/**/*"
   - "!gemini-cli-local/node_modules/.cache/**/*"
   - assets/**/*
@@ -22,8 +23,10 @@ includeSubNodeModules: true
 
 asarUnpack:
   - gemini-cli-local/**/*
+  - codex-cli-local/**/*
   - uploads/**/*
   - node_modules/@modelcontextprotocol/**/*
+  - dist/mcp/**/*
 
 mac:
   category: public.app-category.productivity

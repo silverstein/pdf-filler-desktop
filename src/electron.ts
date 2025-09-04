@@ -18,6 +18,10 @@ import FirstRunSetup from './first-run-setup';
 import MCPManager from './mcp-manager';
 import { ensureMCPConfig } from './mcp-config-generator';
 import { updater } from './auto-updater';
+import { ensureCodexConfig } from './codex-config-generator';
+import CodexAuthHandler from './codex-auth-handler';
+import { checkCodexInstalled } from './codex-installer';
+import TerminalWindow from './terminal-window';
 
 // Type definitions
 interface ServerStatus {
@@ -29,6 +33,13 @@ interface ServerStatus {
 interface AuthCheckResult {
   authenticated: boolean;
   email?: string;
+  error?: string;
+}
+
+interface CodexAuthCheckResult {
+  installed: boolean;
+  authenticated: boolean;
+  detail?: string;
   error?: string;
 }
 
@@ -464,6 +475,82 @@ ipcMain.handle('clear-auth', async (): Promise<{ success: boolean; error?: strin
   }
 });
 
+// Codex CLI auth: check status
+ipcMain.handle('check-codex-auth', async (): Promise<CodexAuthCheckResult> => {
+  try {
+    const handler = new CodexAuthHandler();
+    const status = await handler.checkAuthStatus();
+    return { installed: status.installed, authenticated: status.authenticated, detail: status.detail };
+  } catch (error: any) {
+    log(`Codex auth check error: ${error.message}`);
+    return { installed: false, authenticated: false, error: error.message };
+  }
+});
+
+// Codex CLI auth: start login flow
+ipcMain.handle('start-codex-auth', async (): Promise<{ success: boolean; error?: string }> => {
+  try {
+    log('Starting Codex authentication flow...');
+    const handler = new CodexAuthHandler();
+    const result = await handler.startAuth();
+    if (result.success) {
+      log('Codex authentication successful');
+    } else {
+      log(`Codex authentication failed: ${result.error || 'unknown error'}`);
+    }
+    return result;
+  } catch (error: any) {
+    log(`Codex auth start error: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Combined auth status: true if either Gemini or Codex authenticated
+ipcMain.handle('check-any-auth', async (): Promise<{ authenticated: boolean; providers: { gemini: boolean; codex: boolean }; email?: string; detail?: string; error?: string }> => {
+  try {
+    const g = new TerminalAuthHandler();
+    const gStatus = await g.checkAuthStatus();
+    const c = new CodexAuthHandler();
+    const cStatus = await c.checkAuthStatus();
+    return {
+      authenticated: !!(gStatus?.authenticated || cStatus?.authenticated),
+      providers: { gemini: !!gStatus?.authenticated, codex: !!cStatus?.authenticated },
+      email: gStatus?.email,
+      detail: cStatus?.detail
+    };
+  } catch (e: any) {
+    return { authenticated: false, providers: { gemini: false, codex: false }, error: e.message };
+  }
+});
+
+// Ensure Codex CLI installed; if not, check bundled or PATH
+ipcMain.handle('ensure-codex-installed', async (): Promise<{ installed: boolean; path?: string }> => {
+  const handler = new CodexAuthHandler();
+  const pathResolved = await handler.findCodexBinary();
+  if (pathResolved) return { installed: true, path: pathResolved };
+  // As a last resort, probe PATH
+  const status = await checkCodexInstalled();
+  return status;
+});
+
+// Explicit installer action to run npm install -g @openai/codex
+ipcMain.handle('install-codex', async (): Promise<{ success: boolean; error?: string }> => {
+  const hasNpm = await new Promise<boolean>((resolve) => {
+    const { spawn } = require('child_process');
+    const p = spawn('npm', ['--version']);
+    p.on('close', (code: number) => resolve(code === 0));
+    p.on('error', () => resolve(false));
+  });
+  if (!hasNpm) {
+    return { success: false, error: 'Bundled Codex CLI not found and npm is not available. Rebuild the app to include codex-cli-local or install Codex CLI system-wide.' };
+  }
+  // Keep developer helper to install globally when available
+  const term = new TerminalWindow();
+  await term.create();
+  const ok = await term.runScript('#!/bin/bash\nnpm install -g @openai/codex\n', { title: 'Installing Codex CLI (developer)' });
+  return ok ? { success: true } : { success: false, error: 'Codex CLI installation failed (developer path)' };
+});
+
 // Get user email
 ipcMain.handle('get-user-email', async (): Promise<string | null> => {
   try {
@@ -637,6 +724,15 @@ async function initializeMCP(): Promise<void> {
     
     // First ensure MCP config exists
     await ensureMCPConfig();
+
+    // NEW: Write/ensure Codex MCP registration (stdio server path)
+    try {
+      await ensureCodexConfig();
+      log('Codex MCP config ensured');
+    } catch (e: any) {
+      log(`Codex MCP config error: ${e.message}`);
+      // Non-fatal
+    }
     
     // Then initialize MCP manager
     mcpManager = new MCPManager();

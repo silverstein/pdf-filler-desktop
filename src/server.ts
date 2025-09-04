@@ -6,10 +6,12 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { PDFDocument } from 'pdf-lib';
 import { GeminiCLIService } from './services/gemini-cli.service';
+import CodexCLIService from './services/codex-cli.service';
 import { PDFService } from './services/pdf-service';
 import { CSVService } from './services/csv-service';
 import { ProfileService } from './services/profile-service';
 import { PDFIntelligenceService } from './services/pdf-intelligence.service';
+import { getExtract as getCachedExtract, setExtract as setCachedExtract, getInFlight, setInFlight, clearInFlight } from './services/extract-cache';
 
 // Type definitions for request bodies
 interface AnalyzeLocalRequest {
@@ -131,11 +133,103 @@ const PORT = process.env.PORT || 3456;
 
 // Use simplified Gemini approach - just pass file paths
 const gemini = new GeminiCLIService();
+const codex = new CodexCLIService();
 const pdfService = new PDFService();
 const csvService = new CSVService();
 const profileService = new ProfileService();
 const pdfIntelligence = new PDFIntelligenceService();
 console.log('Using simplified Gemini with direct file access');
+
+// Robust JSON extraction from LLM output (fenced blocks, brace-balanced)
+function parseLLMJson(raw: string): any {
+  if (!raw) throw new Error('Empty LLM output');
+  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  let text = fence ? fence[1] : raw;
+  text = text.replace(/\bTrue\b/g,'true').replace(/\bFalse\b/g,'false').replace(/\bNone\b/g,'null');
+  const start = text.indexOf('{');
+  if (start === -1) throw new Error('No JSON object found');
+  let depth = 0, inStr = false, esc = false, end = -1;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inStr) { if (esc) { esc=false; continue; } if (ch==='\\') { esc=true; continue; } if (ch==='"') inStr=false; continue; }
+    if (ch==='"') { inStr=true; continue; }
+    if (ch==='{') depth++;
+    if (ch==='}') { depth--; if (depth===0) { end=i; break; } }
+  }
+  const jsonStr = end !== -1 ? text.slice(start, end+1) : text;
+  return JSON.parse(jsonStr);
+}
+
+// Helper: prefer Codex when ChatGPT auth is present and Gemini is not
+async function preferCodex(): Promise<boolean> {
+  try {
+    const [codexOk, geminiOk] = await Promise.all([
+      codex.checkAuthStatus(),
+      gemini.checkAuthStatus()
+    ]);
+    return !!(codexOk && !geminiOk);
+  } catch {
+    return false;
+  }
+}
+
+// ---- Codex-backed helpers (fallback to local text extraction) ----
+async function codexAnalyzePDFLocal(pdfPath: string) {
+  // First nudge Codex to call MCP tool extract_text, fallback to local text prompt
+  const toolPrompt = `You have access to an MCP server named "pdf-filler" with tools including extract_text({ pdfPath }).\n` +
+    `Call extract_text with { "pdfPath": "${pdfPath}" } and then return ONLY valid JSON with real values.\n` +
+    `Rules: choose exactly one type from ["form","document","mixed"], no placeholders like "...".\n` +
+    `Schema: { "type": "form|document|mixed", "pages": number, "hasFormFields": boolean, "formFields": [], "summary": string (1-2 sentences) }`;
+  try {
+    const out = await codex.callCodex(toolPrompt);
+    const match = out.match(/\{[\s\S]*\}/);
+  if (match) return parseLLMJson(match[0]);
+  } catch {}
+  // Fallback
+  const textData = await pdfService.extractFullText(pdfPath);
+  const fields = await pdfService.readFormFields(pdfPath).catch(() => []);
+  const text = (textData.text || '').slice(0, 12000);
+  const prompt = `You are analyzing a PDF document. Here is the extracted text (truncated if long):\n\n${text}\n\n` +
+    `Return ONLY valid JSON with keys: { "type": "form|document|mixed", "pages": ${textData.pages || 1}, ` +
+    `"hasFormFields": ${Array.isArray(fields) && fields.length>0}, "formFields": [], ` +
+    `"summary": "One or two concise sentences summarizing the document" }. Choose exactly one type.`;
+  const out2 = await codex.callCodex(prompt);
+  const match2 = out2.match(/\{[\s\S]*\}/);
+  if (match2) return parseLLMJson(match2[0]);
+  return { type: 'document', pages: textData.pages || 1, hasFormFields: fields.length>0, formFields: [], summary: '' };
+}
+
+async function codexExtractPDFLocal(pdfPath: string, template?: any) {
+  const toolPrompt = `You have access to an MCP server named "pdf-filler" with tools including extract_text({ pdfPath }).\n` +
+    `Call extract_text with { "pdfPath": "${pdfPath}" } and return ONLY JSON with a best-effort extraction of key-value data from the text. ` +
+    (template ? `Use this shape as guidance: ${JSON.stringify(template).slice(0, 4000)}.` : '');
+  try {
+    const out = await codex.callCodex(toolPrompt);
+    const match = out.match(/\{[\s\S]*\}/);
+  if (match) return parseLLMJson(match[0]);
+  } catch {}
+  // Fallback to local text extraction prompt
+  const textData = await pdfService.extractFullText(pdfPath);
+  const text = (textData.text || '').slice(0, 16000);
+  let prompt = `Extract structured data from this PDF text (truncated). Return ONLY valid JSON values (no placeholders).\n\n${text}\n\n`;
+  if (template) prompt += `Use this JSON shape as a guide: ${JSON.stringify(template).slice(0, 4000)}`;
+  const out2 = await codex.callCodex(prompt);
+  const match2 = out2.match(/\{[\s\S]*\}/);
+  if (match2) return parseLLMJson(match2[0]);
+  return {};
+}
+
+async function codexGenerateFillInstructionsLocal(pdfPath: string, data: Record<string, any>) {
+  const fields = await pdfService.readFormFields(pdfPath);
+  const shape = fields.map(f => ({ name: f.name, type: f.type, options: f.options || [] }));
+  const prompt = `Given the PDF form fields: ${JSON.stringify(shape).slice(0, 8000)}\n` +
+    `and this data object: ${JSON.stringify(data).slice(0, 4000)}\n` +
+    `Return ONLY a JSON array of instructions: [{"field":"<name>","value":<value>,"type":"text|checkbox|dropdown|radio"}]`; 
+  const out = await codex.callCodex(prompt);
+  const arr = out.match(/\[[\s\S]*\]/);
+  if (arr) return parseLLMJson(arr[0]);
+  return [];
+}
 
 // Middleware
 app.use(cors());
@@ -213,6 +307,14 @@ app.post('/api/intelligence-local', async (req: Request<{}, {}, { filePath: stri
     
     // Get intelligence analysis
     const intelligence = await pdfIntelligence.getQuickIntelligence(filePath);
+
+    // Add lightweight observability header for dev/diagnostics
+    try {
+      const provider = intelligence?.metadata?.provider || 'unknown';
+      const mode = intelligence?.metadata?.mode || 'unknown';
+      res.setHeader('X-Intelligence-Path', `${provider}:${mode}`);
+    } catch {}
+
     res.json(intelligence);
   } catch (error: any) {
     console.error('Intelligence analysis error:', error);
@@ -307,7 +409,11 @@ app.post('/api/analyze-local', async (req: Request<{}, {}, AnalyzeLocalRequest>,
     // Ensure file is accessible to Gemini
     const workspacePath = await ensureFileInWorkspace(filePath);
     
-    const analysis = await gemini.analyzePDF(workspacePath);
+    const useCodex = await preferCodex();
+    console.log(`[route:/api/analyze-local] Provider: ${useCodex ? 'Codex' : 'Gemini'}`);
+    const analysis = useCodex
+      ? await codexAnalyzePDFLocal(workspacePath)
+      : await gemini.analyzePDF(workspacePath);
     res.json(analysis);
   } catch (error: any) {
     console.error('Analysis error:', error);
@@ -333,8 +439,54 @@ app.post('/api/extract-local', async (req: Request<{}, {}, ExtractLocalRequest>,
     
     // Ensure file is accessible to Gemini
     const workspacePath = await ensureFileInWorkspace(filePath);
-    
-    const data = await gemini.extractPDFData({ pdfPath: workspacePath, template });
+
+    // Return cached extract if available
+    try {
+      const cached = getCachedExtract(filePath) || getCachedExtract(workspacePath);
+      if (cached && cached.data) {
+        res.setHeader('X-Extract-Cached', '1');
+        return res.json(cached.data);
+      }
+    } catch {}
+
+    // If an extract is already running for this path, attach and return that result
+    const inflight = getInFlight(filePath) || getInFlight(workspacePath);
+    if (inflight) {
+      res.setHeader('X-Extract-Pending', '1');
+      try {
+        const data = await inflight;
+        if (data) {
+          res.setHeader('X-Extract-Cached', '1');
+          return res.json(data);
+        }
+      } catch {
+        // If in-flight failed, fall through to start a fresh extraction
+      }
+    }
+
+    const useCodex = await preferCodex();
+    console.log(`[route:/api/extract-local] Provider: ${useCodex ? 'Codex' : 'Gemini'}`);
+
+    let data: any;
+    if (useCodex) {
+      // Start a single in-flight extraction and register it
+      const p = codexExtractPDFLocal(workspacePath, template || undefined);
+      setInFlight(filePath, p);
+      try {
+        data = await p;
+        // Store in cache for ChatGPT path
+        try {
+          if (data) {
+            setCachedExtract(filePath, { data, at: Date.now(), provider: 'chatgpt' });
+          }
+        } catch {}
+      } finally {
+        clearInFlight(filePath);
+      }
+    } else {
+      data = await gemini.extractPDFData({ pdfPath: workspacePath, template });
+    }
+
     res.json(data);
   } catch (error: any) {
     console.error('Extraction error:', error);
@@ -385,7 +537,9 @@ app.post('/api/fill-local', async (req: Request<{}, {}, FillLocalRequest>, res: 
     }
     
     // Fallback to original Gemini-based approach
-    const instructions = await gemini.generateFillInstructions(filePath, fillData || {});
+    const instructions = (await preferCodex())
+      ? await codexGenerateFillInstructionsLocal(filePath, fillData || {})
+      : await gemini.generateFillInstructions(filePath, fillData || {});
     
     // Load the PDF
     const existingPdfBytes = await fs.readFile(filePath);
@@ -458,7 +612,21 @@ app.post('/api/validate-local', async (req: Request<{}, {}, ValidateLocalRequest
       return res.status(404).json({ error: 'File not found' });
     }
     
-    const validation = await gemini.validatePDFForm(filePath, requiredFields);
+    const useCodex = await preferCodex();
+    let validation;
+    if (useCodex && Array.isArray(requiredFields) && requiredFields.length>0) {
+      validation = await pdfService.validateForm(filePath, requiredFields);
+    } else if (useCodex) {
+      // No specific required list; ask Codex for a simple completeness summary over extracted text
+      const textData = await pdfService.extractFullText(filePath);
+      const limited = (textData.text || '').slice(0, 16000);
+      const prompt = `From this PDF text (truncated):\n\n${limited}\n\nReturn ONLY JSON {"isValid": boolean, "missingFields": [], "filledFields": [], "allFields": [], "summary": "..."}`;
+      const out = await codex.callCodex(prompt);
+      const m = out.match(/\{[\s\S]*\}/);
+      validation = m ? parseLLMJson(m[0]) : { isValid:false, missingFields:[], allFields:[], filledFields:[], summary:'' };
+    } else {
+      validation = await gemini.validatePDFForm(filePath, requiredFields);
+    }
     res.json(validation);
   } catch (error: any) {
     console.error('Validation error:', error);
@@ -1100,7 +1268,9 @@ app.post('/api/fill', upload.single('pdf'), async (req: Request, res: Response) 
     const fillData = JSON.parse(req.body.data || '{}');
     
     // Get fill instructions from Gemini
-    const instructions = await gemini.generateFillInstructions(req.file.path, fillData);
+    const instructions = (await preferCodex())
+      ? await codexGenerateFillInstructionsLocal(req.file.path, fillData)
+      : await gemini.generateFillInstructions(req.file.path, fillData);
     
     // Load the PDF
     const existingPdfBytes = await fs.readFile(req.file.path);
@@ -1158,9 +1328,10 @@ app.post('/api/compare', upload.array('pdfs', 2), async (req: Request, res: Resp
     }
 
     // Extract data from both PDFs
+    const useCodex = await preferCodex();
     const [pdf1Data, pdf2Data] = await Promise.all([
-      gemini.extractPDFData({ pdfPath: files[0].path }),
-      gemini.extractPDFData({ pdfPath: files[1].path })
+      useCodex ? codexExtractPDFLocal(files[0].path) : gemini.extractPDFData({ pdfPath: files[0].path }),
+      useCodex ? codexExtractPDFLocal(files[1].path) : gemini.extractPDFData({ pdfPath: files[1].path })
     ]);
     
     // Simple comparison
@@ -1192,7 +1363,10 @@ app.post('/api/validate', upload.single('pdf'), async (req: Request, res: Respon
     const requiredFields = req.body.requiredFields ? 
       JSON.parse(req.body.requiredFields) : [];
     
-    const validation = await gemini.validatePDFForm(req.file.path, requiredFields);
+    const useCodex2 = await preferCodex();
+    const validation = useCodex2 && Array.isArray(requiredFields) && requiredFields.length>0
+      ? await pdfService.validateForm(req.file.path, requiredFields)
+      : await gemini.validatePDFForm(req.file.path, requiredFields);
     
     // Clean up
     await fs.unlink(req.file.path).catch(() => {});

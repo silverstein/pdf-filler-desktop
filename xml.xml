@@ -1,0 +1,478 @@
+<chatName="Add Codex CLI via MCP + Local PDF Toolbelt"/>
+<Plan>
+Goal-focused changes to (1) expose your deterministic, local PDF capabilities as a **stdio MCP server** usable by Codex/Claude/Gemini; (2) auto-register that server with **Codex CLI** by writing a user-scoped `~/.codex/config.toml`; and (3) keep OCR optional/lightweight for later.
+
+**What this delivers**
+1) `src/mcp/pdf-filler-mcp.ts` — a minimal MCP server (Node stdio) with tools:
+   - `list_fields` → reads AcroForm fields
+   - `fill_form` → fills/saves a PDF
+   - `extract_text` → extracts full text (uses your `PDFService`)
+   - `extract_to_csv` → dumps fields/values to CSV
+   - `compare_forms` → diffs values between two PDFs  
+   (Built with the official MCP SDK to ensure protocol correctness.)
+
+2) `src/pdf-tools/index.ts` — thin wrappers around your existing `PDFService` and `CSVService` so the MCP tools are clean and deterministic.
+
+3) `src/codex-config-generator.ts` — writes/updates `~/.codex/config.toml` to register the new **pdf-filler** MCP server. For packaged builds it points to the unpacked JS under `app.asar.unpacked/dist/mcp/pdf-filler-mcp.js`; for dev it points to `dist/mcp/pdf-filler-mcp.js`.
+
+4) Wire-up in `src/electron.ts` to run the Codex config generator during startup (alongside your existing Gemini MCP config).  
+
+5) Packaging tweak: ensure `dist/mcp/**/*` is **unpacked**, so Codex can spawn it from disk.
+
+**Notes**
+- OCR is intentionally **not** bundled here—add later via WASM or a separate MCP to keep installer lean.
+- No changes to your existing Gemini flow; this is additive.
+</Plan>
+
+<file path="src/pdf-tools/index.ts" action="create">
+  <change>
+    <description>Create a thin local PDF toolbelt that reuses existing services for MCP</description>
+    <content>
+===
+// src/pdf-tools/index.ts
+import path from 'path';
+import { promises as fs } from 'fs';
+import { PDFService } from '../services/pdf-service';
+import { CSVService } from '../services/csv-service';
+
+export type FieldDescriptor = {
+  name: string;
+  type: string;
+  value: unknown;
+  required: boolean;
+  readOnly: boolean;
+  options: string[] | null;
+};
+
+const pdfService = new PDFService();
+const csvService = new CSVService();
+
+function assertAbsolute(p: string, label: string): void {
+  if (!path.isAbsolute(p)) {
+    throw new Error(`${label} must be an absolute path`);
+  }
+}
+
+export async function listFields(pdfPath: string, password?: string) {
+  assertAbsolute(pdfPath, 'pdfPath');
+  return await pdfService.readFormFields(pdfPath, password ?? null);
+}
+
+export async function fillForm(
+  pdfPath: string,
+  data: Record&lt;string, string | number | boolean&gt;,
+  outPath: string,
+  options?: { flatten?: boolean; password?: string }
+) {
+  assertAbsolute(pdfPath, 'pdfPath');
+  assertAbsolute(outPath, 'outPath');
+
+  const pdfDoc = await pdfService.fillFormFields(pdfPath, data, options?.password ?? null);
+
+  // Optionally flatten in the future (pdf-lib supports partial flatten patterns)
+  // if (options?.flatten) { /* flatten implementation hook */ }
+
+  const saved = await pdfService.saveFilledPDF(pdfDoc, outPath);
+  return { outputPath: saved };
+}
+
+export async function extractText(pdfPath: string, password?: string) {
+  assertAbsolute(pdfPath, 'pdfPath');
+  const res = await pdfService.extractFullText(pdfPath, password ?? null);
+  // pdf-parse returns a single text blob; provide both full and metadata
+  return {
+    pages: res.pages,
+    fullText: res.text ?? '',
+    info: res.info,
+    metadata: res.metadata,
+    version: res.version
+  };
+}
+
+export async function extractToCSV(
+  pdfPath: string,
+  outPath: string,
+  options?: { delimiter?: string; password?: string }
+) {
+  assertAbsolute(pdfPath, 'pdfPath');
+  assertAbsolute(outPath, 'outPath');
+
+  const fields = await pdfService.readFormFields(pdfPath, options?.password ?? null);
+  // Single-row CSV of current field values
+  const row: Record&lt;string, unknown&gt; = {};
+  for (const f of fields) {
+    row[f.name] = f.value ?? '';
+  }
+
+  await fs.mkdir(path.dirname(outPath), { recursive: true });
+  await csvService.saveCSV([row], outPath, null, {
+    delimiter: options?.delimiter ?? ',',
+    header: true
+  });
+
+  return { outputPath: outPath, columns: Object.keys(row).length };
+}
+
+export async function compareForms(
+  leftPath: string,
+  rightPath: string,
+  options?: { leftPassword?: string; rightPassword?: string }
+) {
+  assertAbsolute(leftPath, 'leftPath');
+  assertAbsolute(rightPath, 'rightPath');
+
+  const [lf, rf] = await Promise.all([
+    pdfService.readFormFields(leftPath, options?.leftPassword ?? null),
+    pdfService.readFormFields(rightPath, options?.rightPassword ?? null)
+  ]);
+
+  const lMap = new Map(lf.map((f) =&gt; [f.name, f]));
+  const rMap = new Map(rf.map((f) =&gt; [f.name, f]));
+
+  const allNames = Array.from(new Set([...lMap.keys(), ...rMap.keys()])).sort();
+  const diffs: Array&lt;{ field: string; left?: unknown; right?: unknown }&gt; = [];
+
+  for (const name of allNames) {
+    const lv = lMap.get(name)?.value;
+    const rv = rMap.get(name)?.value;
+    const different =
+      (lv === undefined &amp;&amp; rv !== undefined) ||
+      (rv === undefined &amp;&amp; lv !== undefined) ||
+      JSON.stringify(lv) !== JSON.stringify(rv);
+
+    if (different) {
+      diffs.push({ field: name, left: lv, right: rv });
+    }
+  }
+
+  return { differences: diffs, leftCount: lf.length, rightCount: rf.length };
+}
+
+// Placeholder for future lightweight OCR (e.g., tesseract-wasm)
+export async function extractTextOCR(_pdfPath: string): Promise&lt;never&gt; {
+  throw new Error('OCR not enabled. Enable an OCR MCP or WASM module to use this feature.');
+}
+===
+    </content>
+  </change>
+</file>
+
+<file path="src/mcp/pdf-filler-mcp.ts" action="create">
+  <change>
+    <description>Create stdio MCP server exposing local PDF tools to agents</description>
+    <content>
+===
+// src/mcp/pdf-filler-mcp.ts
+/* MCP stdio server exposing deterministic PDF tools
+   Tools:
+     - list_fields({ pdfPath, password? })
+     - fill_form({ pdfPath, data, outPath, options? })
+     - extract_text({ pdfPath, password? })
+     - extract_to_csv({ pdfPath, outPath, delimiter?, password? })
+     - compare_forms({ leftPath, rightPath, leftPassword?, rightPassword? })
+*/
+
+import { z } from 'zod';
+
+// NOTE: Depending on SDK version, these import paths may be:
+//   '@modelcontextprotocol/sdk/server'  and  '@modelcontextprotocol/sdk/stdio'
+// If your build complains, change to '/server/index.js' and '/stdio.js' variants.
+import { Server } from '@modelcontextprotocol/sdk/server';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/stdio';
+
+import {
+  listFields,
+  fillForm,
+  extractText,
+  extractToCSV,
+  compareForms
+} from '../pdf-tools';
+
+async function main() {
+  const transport = new StdioServerTransport();
+  const server = new Server(
+    { name: 'pdf-filler', version: '1.0.0' },
+    { capabilities: { tools: {} } },
+    transport
+  );
+
+  // list_fields
+  server.tool(
+    'list_fields',
+    {
+      description: 'List AcroForm fields with types, values, options',
+      inputSchema: z.object({
+        pdfPath: z.string().describe('Absolute path to the PDF file'),
+        password: z.string().optional().nullable()
+      })
+    },
+    async ({ input }) =&gt; {
+      const fields = await listFields(input.pdfPath, input.password ?? undefined);
+      return {
+        content: [{ type: 'json', json: { fields } }]
+      };
+    }
+  );
+
+  // fill_form
+  server.tool(
+    'fill_form',
+    {
+      description: 'Fill form fields in a PDF and save to outPath',
+      inputSchema: z.object({
+        pdfPath: z.string().describe('Absolute path to the template PDF'),
+        data: z.record(z.union([z.string(), z.number(), z.boolean()])),
+        outPath: z.string().describe('Absolute path for the output PDF'),
+        options: z
+          .object({
+            flatten: z.boolean().optional(),
+            password: z.string().optional()
+          })
+          .optional()
+          .nullable()
+      })
+    },
+    async ({ input }) =&gt; {
+      const result = await fillForm(input.pdfPath, input.data, input.outPath, input.options ?? undefined);
+      return { content: [{ type: 'json', json: result }] };
+    }
+  );
+
+  // extract_text
+  server.tool(
+    'extract_text',
+    {
+      description: 'Extract full text content and metadata from a PDF',
+      inputSchema: z.object({
+        pdfPath: z.string(),
+        password: z.string().optional().nullable()
+      })
+    },
+    async ({ input }) =&gt; {
+      const result = await extractText(input.pdfPath, input.password ?? undefined);
+      return { content: [{ type: 'json', json: result }] };
+    }
+  );
+
+  // extract_to_csv
+  server.tool(
+    'extract_to_csv',
+    {
+      description: 'Export current field values to a one-row CSV',
+      inputSchema: z.object({
+        pdfPath: z.string(),
+        outPath: z.string(),
+        delimiter: z.string().optional(),
+        password: z.string().optional()
+      })
+    },
+    async ({ input }) =&gt; {
+      const result = await extractToCSV(input.pdfPath, input.outPath, {
+        delimiter: input.delimiter,
+        password: input.password
+      });
+      return { content: [{ type: 'json', json: result }] };
+    }
+  );
+
+  // compare_forms
+  server.tool(
+    'compare_forms',
+    {
+      description: 'Compare two PDFs by AcroForm values and report differences',
+      inputSchema: z.object({
+        leftPath: z.string(),
+        rightPath: z.string(),
+        leftPassword: z.string().optional(),
+        rightPassword: z.string().optional()
+      })
+    },
+    async ({ input }) =&gt; {
+      const result = await compareForms(input.leftPath, input.rightPath, {
+        leftPassword: input.leftPassword,
+        rightPassword: input.rightPassword
+      });
+      return { content: [{ type: 'json', json: result }] };
+    }
+  );
+
+  await server.connect();
+}
+
+main().catch((err) =&gt; {
+  // Emit a structured MCP error payload if needed; for now, log and exit.
+  console.error('[pdf-filler-mcp] fatal:', err?.stack || err);
+  process.exit(1);
+});
+===
+    </content>
+  </change>
+</file>
+
+<file path="src/codex-config-generator.ts" action="create">
+  <change>
+    <description>Create Codex config generator that registers the local MCP server</description>
+    <content>
+===
+// src/codex-config-generator.ts
+import path from 'path';
+import os from 'os';
+import { promises as fs } from 'fs';
+import { app } from 'electron';
+
+/**
+ * Ensure ~/.codex/config.toml contains a stdio MCP entry for our PDF server.
+ * - Packaged app: points to app.asar.unpacked/dist/mcp/pdf-filler-mcp.js
+ * - Dev app: points to dist/mcp/pdf-filler-mcp.js
+ *
+ * We avoid TOML parsing dependencies by idempotently appending a distinct block.
+ * If you prefer full merging, swap to @iarna/toml later.
+ */
+export async function ensureCodexConfig(): Promise&lt;void&gt; {
+  const home = app.getPath('home') || os.homedir();
+  const codexHome = path.join(home, '.codex');
+  const configPath = path.join(codexHome, 'config.toml');
+
+  // Resolve the absolute JS file path for our MCP server
+  const serverJs = app.isPackaged
+    ? path.join(process.resourcesPath!, 'app.asar.unpacked', 'dist', 'mcp', 'pdf-filler-mcp.js')
+    : path.join(__dirname, 'mcp', 'pdf-filler-mcp.js');
+
+  await fs.mkdir(codexHome, { recursive: true });
+
+  let existing = '';
+  try {
+    existing = await fs.readFile(configPath, 'utf8');
+  } catch {
+    // No existing file; that's fine.
+  }
+
+  const electronCmd = process.execPath;
+
+  const block = [
+    '',
+    '# --- BEGIN pdf-filler MCP (managed by PDF Filler app) ---',
+    '[mcp_servers.pdf-filler]',
+    'type = "stdio"',
+    `command = "${electronCmd.replace(/\\/g, '\\\\')}"`,
+    `args = ["${serverJs.replace(/\\/g, '\\\\')}"]`,
+    'env = { ELECTRON_RUN_AS_NODE = "1" }',
+    '# --- END pdf-filler MCP ---',
+    ''
+  ].join('\n');
+
+  // Idempotent: if block already present, do nothing
+  if (existing.includes('[mcp_servers.pdf-filler]')) {
+    return;
+  }
+
+  const content = existing ? `${existing.trimEnd()}\n${block}` : block.trimStart();
+  await fs.writeFile(configPath, content, 'utf8');
+}
+
+export default { ensureCodexConfig };
+===
+    </content>
+  </change>
+</file>
+
+<file path="src/electron.ts" action="delegate edit">
+  <change>
+    <description>Import Codex config generator and invoke it during startup after MCP init</description>
+    <content>
+===
+// REPOMARK:SCOPE: 1 - Add import for Codex config generator at top-level imports
+import { ensureMCPConfig } from './mcp-config-generator';
+import { updater } from './auto-updater';
+import { ensureCodexConfig } from './codex-config-generator';
+
+// ... existing code ...
+
+// REPOMARK:SCOPE: 2 - Invoke ensureCodexConfig() inside initializeMCP() after ensureMCPConfig()
+async function initializeMCP(): Promise<void> {
+  try {
+    log('Initializing MCP...');
+    
+    // First ensure MCP config exists
+    await ensureMCPConfig();
+
+    // NEW: Write/ensure Codex MCP registration (stdio server path)
+    try {
+      await ensureCodexConfig();
+      log('Codex MCP config ensured');
+    } catch (e: any) {
+      log(`Codex MCP config error: ${e.message}`);
+      // Non-fatal
+    }
+    
+    // Then initialize MCP manager
+    mcpManager = new MCPManager();
+    const initialized = await mcpManager.initialize();
+    
+    if (initialized) {
+      log('MCP initialized successfully');
+    } else {
+      log('MCP initialization skipped or failed');
+    }
+  } catch (error: any) {
+    log(`MCP initialization error: ${error.message}`);
+    // MCP is optional, so don't fail the app
+  }
+}
+===
+    </content>
+    <complexity>4</complexity>
+  </change>
+</file>
+
+<file path="electron-builder.yml" action="delegate edit">
+  <change>
+    <description>Ensure MCP server JS is unpacked so Codex can spawn it from disk</description>
+    <content>
+===
+asarUnpack:
+  - gemini-cli-local/**/*
+  - uploads/**/*
+  - node_modules/@modelcontextprotocol/**/*
+  # REPOMARK:SCOPE: 1 - Unpack our custom MCP server JS so external CLIs can execute it
+  - dist/mcp/**/*
+===
+    </content>
+    <complexity>2</complexity>
+  </change>
+</file>
+
+<file path="package.json" action="delegate edit">
+  <change>
+    <description>Add MCP SDK dependency (and keep everything else intact)</description>
+    <content>
+===
+// REPOMARK:SCOPE: 1 - In "dependencies", add @modelcontextprotocol/sdk for the MCP server
+{
+  "dependencies": {
+    "@modelcontextprotocol/server-filesystem": "^2025.7.29",
+    "@modelcontextprotocol/sdk": "^2025.7.29",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "ai": "^5.0.22",
+    "ai-sdk-provider-gemini-cli": "^1.1.0",
+    "archiver": "^7.0.1",
+    "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
+    "csv-stringify": "^6.6.0",
+    "dotenv": "^16.3.1",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.6.2",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^5.4.54",
+    "zod": "^3.25.76"
+  }
+}
+===
+    </content>
+    <complexity>3</complexity>
+  </change>
+</file>
