@@ -3,7 +3,6 @@ import { z } from 'zod';
 import path from 'path';
 import fs from 'fs/promises';
 import {
-  PDFAnalysisResult,
   PDFExtractionResult,
   PDFValidationResult,
   FillInstruction,
@@ -114,111 +113,6 @@ export class AIService {
       return true;
     } catch {
       return false;
-    }
-  }
-
-  async analyzePDF(pdfPath: string, retryCount: number = 0): Promise<PDFAnalysisResult> {
-    await this.checkRateLimit();
-    
-    const absolutePath = path.resolve(pdfPath);
-    
-    try {
-      const prompt = this.useFlashFallback 
-        ? `Read the PDF at: ${absolutePath}
-
-This is a form or document. Tell me:
-1. What type of document is it? (form, document, or mixed)
-2. How many pages does it have?
-3. Does it have form fields? (true/false)
-4. What form fields exist? List each with: name, type (text/checkbox/dropdown/radio/signature), value if filled, required (true/false)
-5. Provide a brief summary
-
-Return your response as a JSON object with this exact structure:
-{
-  "type": "form" or "document" or "mixed",
-  "pages": number,
-  "hasFormFields": boolean,
-  "formFields": [{"name": "...", "type": "...", "value": "...", "required": boolean}],
-  "summary": "...",
-  "metadata": {"title": "...", "author": "...", etc} or null
-}`
-        : `Analyze the PDF file at: ${absolutePath}
-
-For this PDF, identify the form structure AND extract any filled values.
-Include metadata about the document if available.
-
-Return as JSON with this structure:
-{
-  "type": "form" or "document" or "mixed",
-  "pages": number,
-  "hasFormFields": boolean,
-  "formFields": [{"name": "Field name", "type": "text/checkbox/dropdown/radio/signature", "value": any, "required": boolean, "options": ["..."], "page": number}],
-  "summary": "Brief description",
-  "metadata": {"title": "...", "author": "...", "subject": "...", "keywords": "...", "creationDate": "...", "modificationDate": "..."}
-}`;
-
-      // Use generateText to avoid type complexity issues
-      const { text } = await generateText({
-        model: await this.getModel(),
-        prompt: prompt + '\n\nReturn ONLY the JSON object, no other text.',
-        temperature: 0.1 // Lower temperature for more consistent results
-      });
-
-      this.incrementRateLimit();
-      
-      // Parse and validate the JSON response
-      try {
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('No JSON found in response');
-        }
-
-        const jsonString = jsonMatch[0]
-          .replace(/\bTrue\b/g, 'true')
-          .replace(/\bFalse\b/g, 'false')
-          .replace(/\bNone\b/g, 'null');
-
-        const parsed = JSON.parse(jsonString);
-        
-        // Ensure the structure matches our type
-        const result: PDFAnalysisResult = {
-          type: parsed.type || 'document',
-          pages: parsed.pages || 1,
-          hasFormFields: parsed.hasFormFields || false,
-          formFields: parsed.formFields || [],
-          summary: parsed.summary || '',
-          metadata: parsed.metadata
-        };
-
-        // Convert date strings if needed
-        if (result.metadata) {
-          if (result.metadata.creationDate) {
-            result.metadata.creationDate = new Date(result.metadata.creationDate);
-          }
-          if (result.metadata.modificationDate) {
-            result.metadata.modificationDate = new Date(result.metadata.modificationDate);
-          }
-        }
-
-        return result;
-      } catch (parseError) {
-        console.error('Failed to parse PDF analysis response:', text);
-        throw new Error('Failed to parse PDF analysis response');
-      }
-    } catch (error: any) {
-      console.error('PDF analysis error:', error);
-      
-      // Handle quota errors by switching to Flash
-      if (error.message?.includes('429') || error.message?.includes('quota')) {
-        this.useFlashFallback = true;
-        console.log('Switching to Flash model due to quota limits');
-        
-        if (retryCount < 2) {
-          return this.analyzePDF(pdfPath, retryCount + 1);
-        }
-      }
-      
-      throw error;
     }
   }
 

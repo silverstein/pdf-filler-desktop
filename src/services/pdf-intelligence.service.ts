@@ -2,7 +2,15 @@ import { GeminiCLIService } from './gemini-cli.service';
 import CodexCLIService from './codex-cli.service';
 import CodexAIService from './codex-ai.service';
 import { PDFService } from './pdf-service';
-import { getExtract, setExtract, getInFlight, setInFlight, clearInFlight } from './extract-cache';
+import { getExtract, setExtract, getInFlight as getExtractInFlight, setInFlight as setExtractInFlight, clearInFlight as clearExtractInFlight } from './extract-cache';
+import { 
+  getIntelligence, 
+  setIntelligence, 
+  clearIntelligence, 
+  getInFlight as getIntelInFlight, 
+  setInFlight as setIntelInFlight, 
+  clearInFlight as clearIntelInFlight 
+} from './intelligence-cache';
 import path from 'path';
 
 // Type definitions for quick intelligence
@@ -43,31 +51,56 @@ export class PDFIntelligenceService {
   private codex: CodexCLIService;
   private pdf: PDFService;
   private codexAI: CodexAIService;
-  private cache: Map<string, IntelligenceResult>;
 
   constructor() {
     this.gemini = new GeminiCLIService();
     this.codex = new CodexCLIService();
     this.pdf = new PDFService();
     this.codexAI = new CodexAIService();
-    this.cache = new Map();
   }
 
   /**
    * Get quick intelligence about a PDF - the main entry point
    */
-  async getQuickIntelligence(pdfPath: string): Promise<IntelligenceResult> {
+  async getQuickIntelligence(pdfPath: string, forceRefresh: boolean = false): Promise<IntelligenceResult> {
     const startTime = Date.now();
     // Unified overall budget: default 120s (configurable via INTEL_BUDGET_MS)
     const budgetMs = Number(process.env.INTEL_BUDGET_MS || 120000);
     const absolutePath = path.resolve(pdfPath);
     
-    // Check cache first (5-minute window)
-    const cacheKey = `${absolutePath}_${Date.now() / 1000 / 60 / 5 | 0}`;
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)!;
+    // Check persistent cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = getIntelligence(absolutePath);
+      if (cached) {
+        console.log('[Intelligence] Using persistent cache for', absolutePath);
+        return cached.data;
+      }
+      
+      // Check if analysis is already in-flight
+      const inFlight = getIntelInFlight(absolutePath);
+      if (inFlight) {
+        console.log('[Intelligence] Attaching to in-flight analysis for', absolutePath);
+        return inFlight;
+      }
     }
 
+    // Create and register the analysis promise
+    const analysisPromise = this.performIntelligenceAnalysis(absolutePath, budgetMs, startTime);
+    setIntelInFlight(absolutePath, analysisPromise);
+    
+    try {
+      const result = await analysisPromise;
+      return result;
+    } finally {
+      clearIntelInFlight(absolutePath);
+    }
+  }
+
+  private async performIntelligenceAnalysis(
+    absolutePath: string,
+    budgetMs: number,
+    startTime: number
+  ): Promise<IntelligenceResult> {
     const remaining = () => budgetMs - (Date.now() - startTime);
     const log = (...args: any[]) => {
       try {
@@ -121,14 +154,14 @@ export class PDFIntelligenceService {
                   mode: 'codex-short'
                 }
               };
-              this.cache.set(cacheKey, combined);
+              setIntelligence(absolutePath, combined);
               return combined;
             }
           } catch {}
           const quick = this.quickHeuristicIntelligence(absolutePath, textData.text || '', fields, Date.now() - startTime);
           quick.metadata.provider = 'chatgpt';
           quick.metadata.mode = 'heuristic';
-          this.cache.set(cacheKey, quick);
+          setIntelligence(absolutePath, quick);
           return quick;
         }
 
@@ -138,7 +171,7 @@ export class PDFIntelligenceService {
         if (extractObj) {
           log('extract cache hit');
         } else {
-          const attached = getInFlight(absolutePath);
+          const attached = getExtractInFlight(absolutePath);
           if (attached) {
             log('attach to in-flight extract');
             try {
@@ -159,7 +192,7 @@ export class PDFIntelligenceService {
           } else {
             log(`start extract (timeoutMs=${timeoutForExtract})`);
             const p = this.codexAI.extractFromText(textData.text || '', undefined, { timeoutMs: timeoutForExtract });
-            setInFlight(absolutePath, p);
+            setExtractInFlight(absolutePath, p);
             const tExtractStart = Date.now();
             try {
               extractObj = await p;
@@ -170,7 +203,7 @@ export class PDFIntelligenceService {
               log(`extract failed after ${timing.extractMs}ms:`, e?.message || e);
               extractObj = null;
             } finally {
-              clearInFlight(absolutePath);
+              clearExtractInFlight(absolutePath);
             }
             if (extractObj) {
               setExtract(absolutePath, { data: extractObj, at: Date.now(), provider: 'chatgpt' });
@@ -188,7 +221,7 @@ export class PDFIntelligenceService {
           // Ensure consistent provider/mode
           result.metadata.provider = 'chatgpt';
           result.metadata.mode = 'extract-first';
-          this.cache.set(cacheKey, result);
+          setIntelligence(absolutePath, result);
           return result;
         }
 
@@ -216,7 +249,7 @@ export class PDFIntelligenceService {
                 mode: 'codex-short'
               }
             };
-            this.cache.set(cacheKey, combined);
+            setIntelligence(absolutePath, combined);
             return combined;
           }
         } catch {}
@@ -225,7 +258,7 @@ export class PDFIntelligenceService {
         const quick = this.quickHeuristicIntelligence(absolutePath, textData.text || '', fields, Date.now() - startTime);
         quick.metadata.provider = 'chatgpt';
         quick.metadata.mode = 'heuristic';
-        this.cache.set(cacheKey, quick);
+        setIntelligence(absolutePath, quick);
         return quick;
       }
 
@@ -285,13 +318,7 @@ export class PDFIntelligenceService {
       }
 
       // Cache and return
-      this.cache.set(cacheKey, result);
-      if (this.cache.size > 100) {
-        const firstKey = this.cache.keys().next().value;
-        if (firstKey) {
-          this.cache.delete(firstKey);
-        }
-      }
+      setIntelligence(absolutePath, result);
       return result;
     } catch (error: any) {
       console.error('Intelligence analysis failed:', error);
@@ -682,36 +709,119 @@ Return ONLY a JSON object:
       title = 'Financial Statement';
     }
 
-    // Pull specific signals
-    const trustName = findVal(['trust.name','trust_title','revocable trust','trust_name']);
-    const executor = findVal(['will.executor.primary','executor.name','executor.primary']);
-    const altExecutor = findVal(['will.executor.alternate','alternate_executor','executor.alternate']);
-    const successorTrustee = findVal(['successor_trustee','trust.successor_trustee','trustee.successor']);
-    const primaryGuardian = findVal(['guardianship.primary_guardian','guardian.primary']);
-    const alternateGuardian = findVal(['guardianship.alternate_guardian','guardian.alternate']);
-    const preparedDate = findVal(['prepared_date','date_prepared','document_date']);
-    const donations = findAll(['charitable','donation','charitable_donation']);
-    const distributions = findAll(['distribution','beneficiaries','bequest']);
-    const amounts = findAll(['amount','$','total','value']).filter(s => /\$?\d/.test(s)).slice(0,3);
-
-    // Build key insights
+    // Pull specific signals based on document category
     const keyInsights: string[] = [];
-    if (trustName) keyInsights.push(`Trust: ${trustName}`);
-    if (executor) keyInsights.push(`Executor: ${executor}${altExecutor ? `; Alternate: ${altExecutor}` : ''}`);
-    if (successorTrustee) keyInsights.push(`Successor trustee: ${successorTrustee}`);
-    if (primaryGuardian) keyInsights.push(`Guardian: ${primaryGuardian}${alternateGuardian ? `; Alternate: ${alternateGuardian}` : ''}`);
-    if (preparedDate) keyInsights.push(`Prepared on ${preparedDate}`);
-    if (donations.length) keyInsights.push(`Charitable donation noted (${donations[0]})`);
-    if (distributions.length) keyInsights.push('Distributions/beneficiaries specified');
-    if (!keyInsights.length) keyInsights.push('Core roles and sections detected');
-
-    // Actions and tips from signals
     const nextActions: string[] = [];
-    if (!altExecutor && executor) nextActions.push('Fill in an alternate executor');
-    if (!alternateGuardian && primaryGuardian) nextActions.push('Name an alternate guardian');
-    if (preparedDate) nextActions.push('Review every 3 years or after major life events');
-    if (category === 'legal') nextActions.push('Share copies with executor, trustee, and guardians');
-    if (!nextActions.length) nextActions.push('Review the document for accuracy');
+    
+    if (category === 'legal') {
+      // Legal document signals
+      const trustName = findVal(['trust.name','trust_title','revocable trust','trust_name']);
+      const executor = findVal(['will.executor.primary','executor.name','executor.primary']);
+      const altExecutor = findVal(['will.executor.alternate','alternate_executor','executor.alternate']);
+      const successorTrustee = findVal(['successor_trustee','trust.successor_trustee','trustee.successor']);
+      const primaryGuardian = findVal(['guardianship.primary_guardian','guardian.primary']);
+      const alternateGuardian = findVal(['guardianship.alternate_guardian','guardian.alternate']);
+      const preparedDate = findVal(['prepared_date','date_prepared','document_date']);
+      const donations = findAll(['charitable','donation','charitable_donation']);
+      const distributions = findAll(['distribution','beneficiaries','bequest']);
+      
+      if (trustName) keyInsights.push(`Trust: ${trustName}`);
+      if (executor) keyInsights.push(`Executor: ${executor}${altExecutor ? `; Alternate: ${altExecutor}` : ''}`);
+      if (successorTrustee) keyInsights.push(`Successor trustee: ${successorTrustee}`);
+      if (primaryGuardian) keyInsights.push(`Guardian: ${primaryGuardian}${alternateGuardian ? `; Alternate: ${alternateGuardian}` : ''}`);
+      if (preparedDate) keyInsights.push(`Prepared on ${preparedDate}`);
+      if (donations.length) keyInsights.push(`Charitable donation noted (${donations[0]})`);
+      if (distributions.length) keyInsights.push('Distributions/beneficiaries specified');
+      
+      if (!altExecutor && executor) nextActions.push('Fill in an alternate executor');
+      if (!alternateGuardian && primaryGuardian) nextActions.push('Name an alternate guardian');
+      nextActions.push('Share copies with executor, trustee, and guardians');
+      nextActions.push('Review every 3 years or after major life events');
+      
+    } else if (category === 'financial') {
+      // Financial document signals
+      const accountNumber = findVal(['account','account_number','account_no']);
+      const statementDate = findVal(['statement_date','date','period','statement_period']);
+      const balance = findVal(['balance','ending_balance','current_balance','total']);
+      const transactions = findAll(['transaction','deposit','withdrawal','payment','debit','credit']);
+      const fees = findAll(['fee','charge','service_charge']);
+      const interest = findVal(['interest','interest_earned','apy','apr']);
+      const amounts = findAll(['amount','$','total','balance']).filter(s => /\$?\d/.test(s)).slice(0,5);
+      
+      if (accountNumber) keyInsights.push(`Account: ${accountNumber.replace(/\d(?=\d{4})/g, '*')}`); // Mask account number
+      if (statementDate) keyInsights.push(`Statement period: ${statementDate}`);
+      if (balance) keyInsights.push(`Balance: ${balance}`);
+      if (transactions.length) keyInsights.push(`${transactions.length} transactions found`);
+      if (fees.length) keyInsights.push(`Fees/charges detected`);
+      if (interest) keyInsights.push(`Interest rate: ${interest}`);
+      if (amounts.length && !balance) keyInsights.push(`Key amounts: ${amounts.slice(0,3).join(', ')}`);
+      
+      nextActions.push('Review transactions for accuracy');
+      nextActions.push('Check for unauthorized charges');
+      nextActions.push('Reconcile with your records');
+      if (fees.length) nextActions.push('Review fees and consider options to reduce them');
+      
+    } else if (category === 'tax') {
+      // Tax document signals
+      const taxYear = findVal(['tax_year','year','2023','2024','2025']);
+      const ein = findVal(['ein','employer_identification','tax_id']);
+      const ssn = findVal(['ssn','social_security','taxpayer_id']);
+      const income = findVal(['income','wages','salary','gross_income','adjusted_gross']);
+      const deductions = findAll(['deduction','expense','credit']);
+      const refund = findVal(['refund','overpayment']);
+      const owed = findVal(['amount_owed','balance_due','tax_due']);
+      
+      if (taxYear) keyInsights.push(`Tax year: ${taxYear}`);
+      if (ein) keyInsights.push(`EIN: ${ein.replace(/\d(?=\d{2})/g, '*')}`); // Mask EIN
+      if (ssn) keyInsights.push(`SSN: ***-**-${ssn.slice(-4)}`); // Show only last 4 of SSN
+      if (income) keyInsights.push(`Income reported: ${income}`);
+      if (deductions.length) keyInsights.push(`${deductions.length} deductions/credits found`);
+      if (refund) keyInsights.push(`Refund: ${refund}`);
+      if (owed) keyInsights.push(`Amount owed: ${owed}`);
+      
+      nextActions.push('Verify all information is accurate');
+      nextActions.push('Keep for your tax records');
+      if (owed) nextActions.push('Make payment by the deadline');
+      if (refund) nextActions.push('Track refund status');
+      
+    } else {
+      // Generic document - try to extract any valuable info
+      const dates = findAll(['date','dated','created','modified','prepared']);
+      const names = findAll(['name','person','individual','party']);
+      const amounts = findAll(['amount','$','total','value']).filter(s => /\$?\d/.test(s)).slice(0,3);
+      const ids = findAll(['id','number','reference','code']);
+      
+      if (dates.length) keyInsights.push(`Date information: ${dates[0]}`);
+      if (names.length) keyInsights.push(`Names found: ${names.slice(0,2).join(', ')}`);
+      if (amounts.length) keyInsights.push(`Key amounts: ${amounts.join(', ')}`);
+      if (ids.length) keyInsights.push(`Reference: ${ids[0]}`);
+      
+      // Try to extract more from the raw data
+      const keys = Object.keys(extractObj).slice(0, 10);
+      if (keys.length > 0 && keyInsights.length < 3) {
+        keys.forEach(key => {
+          const val = extractObj[key];
+          if (val && typeof val !== 'object' && String(val).length < 50 && keyInsights.length < 5) {
+            keyInsights.push(`${key}: ${val}`);
+          }
+        });
+      }
+      
+      nextActions.push('Review the extracted data below');
+      nextActions.push('Verify all information is correct');
+    }
+    
+    // Ensure we always have something meaningful
+    if (!keyInsights.length) {
+      // Last resort - show the first few non-null values from extract
+      const simpleVals = flat.filter(f => f.value && String(f.value).length < 100).slice(0, 3);
+      simpleVals.forEach(f => keyInsights.push(`${f.path}: ${f.value}`));
+      if (!keyInsights.length) keyInsights.push('Document processed successfully');
+    }
+    
+    if (!nextActions.length) {
+      nextActions.push('Review the document for accuracy');
+    }
 
     const processingTips: string[] = [];
     if (category === 'legal') {
@@ -846,7 +956,7 @@ Return ONLY a JSON object:
    * Clear cache
    */
   clearCache(): void {
-    this.cache.clear();
+    clearIntelligence();
   }
 }
 

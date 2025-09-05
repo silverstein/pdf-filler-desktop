@@ -203,6 +203,55 @@
                 <input type="file" id="fileInput" class="file-input" accept=".pdf">
             </div>
 
+            <!-- Quick Info Card (shows instantly) -->
+            <div class="quick-info-card" id="quickInfoCard" style="display: none;">
+                <div class="quick-info-header">
+                    <h3>
+                        <i data-lucide="info" style="width: 20px; height: 20px;"></i>
+                        File Information
+                    </h3>
+                    <button class="quick-info-toggle" onclick="toggleQuickInfo()">
+                        <i data-lucide="chevron-down" style="width: 16px; height: 16px;"></i>
+                    </button>
+                </div>
+                <div class="quick-info-content" id="quickInfoContent">
+                    <div class="quick-info-grid">
+                        <div class="info-item">
+                            <span class="info-label">File Name:</span>
+                            <span class="info-value" id="qiFileName">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">File Size:</span>
+                            <span class="info-value" id="qiFileSize">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Pages:</span>
+                            <span class="info-value" id="qiPages">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">PDF Version:</span>
+                            <span class="info-value" id="qiVersion">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Form Fields:</span>
+                            <span class="info-value" id="qiFormFields">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Has Signatures:</span>
+                            <span class="info-value" id="qiSignatures">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Encrypted:</span>
+                            <span class="info-value" id="qiEncrypted">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Created:</span>
+                            <span class="info-value" id="qiCreated">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Intelligence Card -->
             <div class="intelligence-card" id="intelligenceCard" style="display: none;">
                 <div class="intelligence-header">
@@ -244,7 +293,7 @@
                 <div class="spinner"></div>
                 <p id="processingText">Processing with AI...</p>
                 <small style="display: block; margin-top: 10px;">
-                    This may take 30-60 seconds for complex PDFs
+                    This may take 30 seconds to 2 minutes for complex PDFs
                 </small>
                 <div id="processingTimer" style="margin-top: 10px; font-size: 0.9em;"></div>
             </div>
@@ -270,10 +319,6 @@
         <div class="results-area" id="resultsSection">
             <!-- Actions moved here from upload-area -->
             <div class="actions">
-                <div class="action-card" data-action="analyze">
-                    <h3><i data-lucide="search" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Analyze</h3>
-                    <p>Extract structure and form fields</p>
-                </div>
                 <div class="action-card" data-action="extract">
                     <h3><i data-lucide="database" style="width: 20px; height: 20px; display: inline-block; vertical-align: text-bottom;"></i> Extract Data</h3>
                     <p>Convert PDF content to JSON</p>

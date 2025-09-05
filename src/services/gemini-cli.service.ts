@@ -6,7 +6,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import * as os from 'os';
 import {
-  PDFAnalysisResult,
   PDFExtractionResult,
   PDFValidationResult,
   FillInstruction,
@@ -247,103 +246,6 @@ export class GeminiCLIService {
         }
       });
     });
-  }
-
-  async analyzePDF(pdfPath: string, retryCount: number = 0): Promise<PDFAnalysisResult> {
-    // Use absolute path for MCP filesystem access
-    const absolutePath = path.resolve(pdfPath);
-    
-    let prompt: string;
-    
-    if (this.useFlashFallback) {
-      // Simpler prompts for Flash model
-      const flashPrompts = [
-        `Read the PDF at: ${absolutePath}
-
-This is a form or document. Tell me:
-1. What type of document is it?
-2. What data/values are filled in?
-
-Don't list field names like "f1_1" - extract the actual information.
-
-Return as JSON with type, pages, hasFormFields, formFields (with actual labels and values), and summary.
-
-Return ONLY the JSON object.`,
-        `Read the PDF at: ${absolutePath}
-
-What type of document is this? What information does it contain?
-
-Format your response as JSON with type, pages, hasFormFields, formFields, and summary.`,
-        `Check the PDF at: ${absolutePath}
-
-Describe the document and any fields or data you find.
-
-Return as JSON with document type, page count, and field information.`
-      ];
-      prompt = flashPrompts[retryCount % flashPrompts.length];
-    } else {
-      // Detailed prompt for Pro model
-      prompt = `Analyze the PDF file at: ${absolutePath}
-
-For this PDF, identify the form structure AND extract any filled values.
-
-Return a JSON object with this structure:
-{
-  "type": "form|document|mixed",
-  "pages": <number>,
-  "hasFormFields": <boolean>,
-  "formFields": [
-    {
-      "name": "<field_name>",
-      "type": "text|checkbox|dropdown",
-      "required": <boolean>,
-      "value": "<current value if filled, null if empty>"
-    }
-  ],
-  "summary": "<brief description>"
-}
-
-Include the current value for each field if it's filled in.
-Return ONLY the JSON object, no other text.`;
-    }
-    
-    const response = await this.callGemini(prompt);
-    
-    try {
-      // Check if Flash is refusing to process PDFs
-      if (response.includes('cannot directly') || response.includes('cannot interpret')) {
-        if (retryCount < 2) {
-          console.log(`Flash refused analysis, retrying with different prompt (attempt ${retryCount + 2}/3)`);
-          return this.analyzePDF(pdfPath, retryCount + 1);
-        }
-      }
-      
-      // Extract JSON from response
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        // Fix Python-style booleans before parsing
-        const jsonString = jsonMatch[0]
-          .replace(/\bTrue\b/g, 'true')
-          .replace(/\bFalse\b/g, 'false')
-          .replace(/\bNone\b/g, 'null');
-        
-        const parsed = JSON.parse(jsonString);
-        
-        // Ensure proper structure
-        return {
-          type: parsed.type || 'document',
-          pages: parsed.pages || 1,
-          hasFormFields: parsed.hasFormFields || false,
-          formFields: parsed.formFields || [],
-          summary: parsed.summary || '',
-          metadata: parsed.metadata
-        };
-      }
-      throw new Error('No JSON found in response');
-    } catch (e) {
-      console.error('Failed to parse response:', response);
-      throw new Error('Failed to parse PDF analysis');
-    }
   }
 
   async extractPDFData(options: ExtractOptions): Promise<PDFExtractionResult> {

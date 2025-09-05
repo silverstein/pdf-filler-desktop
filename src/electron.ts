@@ -466,8 +466,16 @@ ipcMain.handle('get-app-info', async () => {
 ipcMain.handle('clear-auth', async (): Promise<{ success: boolean; error?: string }> => {
   try {
     log('Clearing authentication...');
-    const authHandler = new TerminalAuthHandler();
-    await authHandler.clearAuth();
+    
+    // Clear Gemini auth
+    const geminiAuthHandler = new TerminalAuthHandler();
+    await geminiAuthHandler.clearAuth();
+    
+    // Clear Codex auth
+    const codexAuthHandler = new CodexAuthHandler();
+    await codexAuthHandler.clearAuth();
+    
+    log('Both Gemini and Codex authentication cleared');
     return { success: true };
   } catch (error: any) {
     log(`Clear auth error: ${error.message}`);

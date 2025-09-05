@@ -66,36 +66,30 @@
             requiresFile: true 
         },
         'cmd+1': { 
-            action: 'quickAction1', 
-            description: 'Analyze PDF',
-            requiresAuth: true,
-            requiresFile: true 
-        },
-        'cmd+2': { 
             action: 'quickAction2', 
             description: 'Extract Data',
             requiresAuth: true,
             requiresFile: true 
         },
-        'cmd+3': { 
+        'cmd+2': { 
             action: 'quickAction3', 
             description: 'Fill Form',
             requiresAuth: true,
             requiresFile: true 
         },
-        'cmd+4': { 
+        'cmd+3': { 
             action: 'quickAction4', 
             description: 'Bulk Fill',
             requiresAuth: true,
             requiresFile: true 
         },
-        'cmd+5': { 
+        'cmd+4': { 
             action: 'quickAction5', 
             description: 'Validate',
             requiresAuth: true,
             requiresFile: true 
         },
-        'cmd+6': { 
+        'cmd+5': { 
             action: 'quickAction6', 
             description: 'Profiles',
             requiresAuth: true,
@@ -212,12 +206,6 @@
             case 'refreshIntelligence':
                 if (window.refreshIntelligence) {
                     window.refreshIntelligence();
-                }
-                break;
-                
-            case 'quickAction1':
-                if (window.processFile) {
-                    window.processFile('analyze');
                 }
                 break;
                 

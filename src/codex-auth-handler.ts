@@ -142,6 +142,19 @@ export class CodexAuthHandler {
     }
   }
 
+  async clearAuth(): Promise<void> {
+    // Clear Codex authentication by removing auth.json
+    const home = os.homedir();
+    const authPath = path.join(home, '.codex', 'auth.json');
+    try {
+      await fs.unlink(authPath);
+      console.log('Codex authentication cleared successfully');
+    } catch (error) {
+      // File might not exist, which is fine
+      console.log('Codex auth file not found or already cleared');
+    }
+  }
+
   async startAuth(): Promise<AuthResult> {
     const codex = await this.findCodexBinary();
     if (!codex) {

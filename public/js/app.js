@@ -565,6 +565,9 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         lucide.createIcons();
         
+        // Fetch and display Quick Info immediately
+        fetchQuickInfo(filePath);
+        
         // Fetch intelligence for the native file
         fetchIntelligence(filePath);
         
@@ -574,8 +577,78 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     }
     
+    // Quick Info Functions
+    async function fetchQuickInfo(filePath) {
+        const card = document.getElementById('quickInfoCard');
+        
+        // Show the card immediately
+        card.style.display = 'block';
+        
+        try {
+            const response = await fetch('/api/quick-info-local', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ filePath })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const quickInfo = await response.json();
+            displayQuickInfo(quickInfo);
+            
+        } catch (error) {
+            console.error('Failed to fetch quick info:', error);
+            // Hide the card if we can't get info
+            card.style.display = 'none';
+        }
+    }
+    
+    function displayQuickInfo(info) {
+        // Update all the quick info fields
+        document.getElementById('qiFileName').textContent = info.fileName || '-';
+        document.getElementById('qiFileSize').textContent = info.fileSizeFormatted || '-';
+        document.getElementById('qiPages').textContent = info.pages || '-';
+        document.getElementById('qiVersion').textContent = info.pdfVersion || '-';
+        
+        // Form fields info
+        if (info.formFieldCount > 0) {
+            const fieldTypes = Object.entries(info.fieldTypes)
+                .map(([type, count]) => `${count} ${type}`)
+                .join(', ');
+            document.getElementById('qiFormFields').textContent = `${info.formFieldCount} (${fieldTypes})`;
+        } else {
+            document.getElementById('qiFormFields').textContent = 'None';
+        }
+        
+        document.getElementById('qiSignatures').textContent = info.hasSignatures ? 'Yes' : 'No';
+        document.getElementById('qiEncrypted').textContent = info.isEncrypted ? 'Yes' : 'No';
+        
+        // Format creation date
+        if (info.creationDate) {
+            const date = new Date(info.creationDate);
+            document.getElementById('qiCreated').textContent = date.toLocaleDateString();
+        } else {
+            document.getElementById('qiCreated').textContent = '-';
+        }
+    }
+    
+    function toggleQuickInfo() {
+        const content = document.getElementById('quickInfoContent');
+        const toggle = document.querySelector('.quick-info-toggle i');
+        
+        content.classList.toggle('collapsed');
+        toggle.parentElement.classList.toggle('collapsed');
+    }
+    
+    // Make toggleQuickInfo globally available
+    window.toggleQuickInfo = toggleQuickInfo;
+    
     // Intelligence Functions
-    async function fetchIntelligence(filePath) {
+    async function fetchIntelligence(filePath, forceRefresh = false) {
         const card = document.getElementById('intelligenceCard');
         const content = document.getElementById('intelligenceContent');
         
@@ -592,7 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/intelligence-local', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filePath })
+                body: JSON.stringify({ filePath, forceRefresh })
             });
             
             if (response.ok) {
@@ -709,7 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function refreshIntelligence() {
         if (selectedFile && selectedFileIsPath) {
-            fetchIntelligence(selectedFile);
+            fetchIntelligence(selectedFile, true); // Force refresh
         }
     }
     
@@ -719,7 +792,8 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedFile = null;
         selectedFileIsPath = false;
         
-        // Hide intelligence card
+        // Hide Quick Info and Intelligence cards
+        document.getElementById('quickInfoCard').style.display = 'none';
         document.getElementById('intelligenceCard').style.display = 'none';
         
         const dropZone = document.getElementById('dropZone');
@@ -2623,10 +2697,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="recent-file-name" title="${escapeHtml(fileName)}">${escapeHtml(fileName)}</div>
                 <div class="recent-file-time">${lastAccessed}</div>
                 <div class="recent-file-actions">
-                    <button class="recent-file-action" data-action="analyze">
-                        <i data-lucide="search" style="width: 12px; height: 12px;"></i>
-                        Analyze
-                    </button>
                     <button class="recent-file-action" data-action="extract">
                         <i data-lucide="database" style="width: 12px; height: 12px;"></i>
                         Extract
@@ -2679,9 +2749,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Trigger the action using processFile function
             switch (action) {
-                case 'analyze':
-                    await processFile('analyze');
-                    break;
                 case 'extract':
                     await processFile('extract');
                     break;

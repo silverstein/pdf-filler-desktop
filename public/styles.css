@@ -494,6 +494,86 @@
         text-align: center;
     }
 
+    /* Quick Info Card Styles */
+    .quick-info-card {
+        margin: 1rem 0 0.5rem 0;
+        padding: 1rem;
+        border-radius: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        animation: slideIn 0.2s ease;
+    }
+
+    .quick-info-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .quick-info-header h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .quick-info-toggle {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+
+    .quick-info-toggle:hover {
+        background: var(--surface-hover);
+    }
+
+    .quick-info-toggle.collapsed {
+        transform: rotate(-90deg);
+    }
+
+    .quick-info-content {
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .quick-info-content.collapsed {
+        max-height: 0;
+        margin: 0;
+        opacity: 0;
+    }
+
+    .quick-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem;
+        background: var(--background);
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+
+    .info-label {
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    .info-value {
+        color: var(--text);
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
     /* Intelligence Card Styles */
     .intelligence-card {
         margin: 1.5rem 0;

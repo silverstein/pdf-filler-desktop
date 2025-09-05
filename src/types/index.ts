@@ -3,7 +3,7 @@
 export interface PDFFormField {
   name: string;
   type: 'text' | 'checkbox' | 'dropdown' | 'radio' | 'signature';
-  value: string | boolean | null;
+  value?: string | boolean | null;  // Made optional - only for extraction
   required: boolean;
   options?: string[]; // For dropdown/radio fields
   page?: number;
@@ -14,7 +14,7 @@ export interface PDFAnalysisResult {
   pages: number;
   hasFormFields: boolean;
   formFields: PDFFormField[];
-  summary: string;
+  summary?: string;  // Made optional - focus on technical structure
   metadata?: {
     title?: string;
     author?: string;
@@ -22,6 +22,9 @@ export interface PDFAnalysisResult {
     keywords?: string;
     creationDate?: Date;
     modificationDate?: Date;
+    hasSignatures?: boolean;
+    formFieldCount?: number;
+    textLength?: number;
   };
 }
 
@@ -104,16 +107,11 @@ export interface IPCChannels {
   'auth-terminal-opened': () => void;
   'auth-timeout': () => void;
   'server-status': (status: { running: boolean; port?: number }) => void;
-  'pdf-analyzed': (result: PDFAnalysisResult) => void;
   'pdf-extracted': (result: PDFExtractionResult) => void;
   'error': (error: { message: string; code?: string }) => void;
 }
 
 // Server request/response types
-export interface AnalyzeRequest {
-  pdfPath?: string;
-}
-
 export interface ExtractRequest {
   pdfPath?: string;
   template?: Record<string, unknown>;

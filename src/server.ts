@@ -14,10 +14,6 @@ import { PDFIntelligenceService } from './services/pdf-intelligence.service';
 import { getExtract as getCachedExtract, setExtract as setCachedExtract, getInFlight, setInFlight, clearInFlight } from './services/extract-cache';
 
 // Type definitions for request bodies
-interface AnalyzeLocalRequest {
-  filePath: string;
-}
-
 interface ExtractLocalRequest {
   filePath: string;
   template?: any;
@@ -174,31 +170,6 @@ async function preferCodex(): Promise<boolean> {
 }
 
 // ---- Codex-backed helpers (fallback to local text extraction) ----
-async function codexAnalyzePDFLocal(pdfPath: string) {
-  // First nudge Codex to call MCP tool extract_text, fallback to local text prompt
-  const toolPrompt = `You have access to an MCP server named "pdf-filler" with tools including extract_text({ pdfPath }).\n` +
-    `Call extract_text with { "pdfPath": "${pdfPath}" } and then return ONLY valid JSON with real values.\n` +
-    `Rules: choose exactly one type from ["form","document","mixed"], no placeholders like "...".\n` +
-    `Schema: { "type": "form|document|mixed", "pages": number, "hasFormFields": boolean, "formFields": [], "summary": string (1-2 sentences) }`;
-  try {
-    const out = await codex.callCodex(toolPrompt);
-    const match = out.match(/\{[\s\S]*\}/);
-  if (match) return parseLLMJson(match[0]);
-  } catch {}
-  // Fallback
-  const textData = await pdfService.extractFullText(pdfPath);
-  const fields = await pdfService.readFormFields(pdfPath).catch(() => []);
-  const text = (textData.text || '').slice(0, 12000);
-  const prompt = `You are analyzing a PDF document. Here is the extracted text (truncated if long):\n\n${text}\n\n` +
-    `Return ONLY valid JSON with keys: { "type": "form|document|mixed", "pages": ${textData.pages || 1}, ` +
-    `"hasFormFields": ${Array.isArray(fields) && fields.length>0}, "formFields": [], ` +
-    `"summary": "One or two concise sentences summarizing the document" }. Choose exactly one type.`;
-  const out2 = await codex.callCodex(prompt);
-  const match2 = out2.match(/\{[\s\S]*\}/);
-  if (match2) return parseLLMJson(match2[0]);
-  return { type: 'document', pages: textData.pages || 1, hasFormFields: fields.length>0, formFields: [], summary: '' };
-}
-
 async function codexExtractPDFLocal(pdfPath: string, template?: any) {
   const toolPrompt = `You have access to an MCP server named "pdf-filler" with tools including extract_text({ pdfPath }).\n` +
     `Call extract_text with { "pdfPath": "${pdfPath}" } and return ONLY JSON with a best-effort extraction of key-value data from the text. ` +
@@ -289,10 +260,37 @@ app.get('/api/health', async (req: Request, res: Response) => {
 // NEW: PDF Intelligence Endpoints
 // ============================================
 
-// Get quick intelligence about a PDF
-app.post('/api/intelligence-local', async (req: Request<{}, {}, { filePath: string }>, res: Response) => {
+// Get quick info about a PDF (technical metadata - FAST)
+app.post('/api/quick-info-local', async (req: Request<{}, {}, { filePath: string }>, res: Response) => {
   try {
     const { filePath } = req.body;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'No file path provided' });
+    }
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({ error: 'PDF file not found' });
+    }
+    
+    const quickInfo = await pdfService.getQuickInfo(filePath);
+    res.json(quickInfo);
+  } catch (error: any) {
+    console.error('Quick info error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get PDF info',
+      details: error.message 
+    });
+  }
+});
+
+// Get quick intelligence about a PDF
+app.post('/api/intelligence-local', async (req: Request<{}, {}, { filePath: string; forceRefresh?: boolean }>, res: Response) => {
+  try {
+    const { filePath, forceRefresh = false } = req.body;
     
     if (!filePath) {
       return res.status(400).json({ error: 'No file path provided' });
@@ -306,7 +304,7 @@ app.post('/api/intelligence-local', async (req: Request<{}, {}, { filePath: stri
     }
     
     // Get intelligence analysis
-    const intelligence = await pdfIntelligence.getQuickIntelligence(filePath);
+    const intelligence = await pdfIntelligence.getQuickIntelligence(filePath, forceRefresh);
 
     // Add lightweight observability header for dev/diagnostics
     try {
@@ -389,37 +387,6 @@ async function ensureFileInWorkspace(filePath: string): Promise<string> {
   
   return tempPath;
 }
-
-// Analyze PDF from local path
-app.post('/api/analyze-local', async (req: Request<{}, {}, AnalyzeLocalRequest>, res: Response) => {
-  try {
-    const { filePath } = req.body;
-    
-    if (!filePath) {
-      return res.status(400).json({ error: 'No file path provided' });
-    }
-    
-    // Check if file exists
-    try {
-      await fs.access(filePath);
-    } catch {
-      return res.status(404).json({ error: 'File not found' });
-    }
-    
-    // Ensure file is accessible to Gemini
-    const workspacePath = await ensureFileInWorkspace(filePath);
-    
-    const useCodex = await preferCodex();
-    console.log(`[route:/api/analyze-local] Provider: ${useCodex ? 'Codex' : 'Gemini'}`);
-    const analysis = useCodex
-      ? await codexAnalyzePDFLocal(workspacePath)
-      : await gemini.analyzePDF(workspacePath);
-    res.json(analysis);
-  } catch (error: any) {
-    console.error('Analysis error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Extract data from local PDF
 app.post('/api/extract-local', async (req: Request<{}, {}, ExtractLocalRequest>, res: Response) => {
@@ -1219,25 +1186,6 @@ app.post('/api/bulk-fill-local', async (req: Request<{}, {}, BulkFillLocalReques
 // LEGACY: Upload-based endpoints (keeping for now)
 // ============================================
 
-// Analyze PDF endpoint
-app.post('/api/analyze', upload.single('pdf'), async (req: Request, res: Response) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No PDF file provided' });
-    }
-
-    const analysis = await gemini.analyzePDF(req.file.path);
-    
-    // Clean up uploaded file
-    await fs.unlink(req.file.path).catch(() => {});
-    
-    res.json(analysis);
-  } catch (error: any) {
-    console.error('Analysis error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Extract data from PDF
 app.post('/api/extract', upload.single('pdf'), async (req: Request, res: Response) => {
   try {
@@ -1470,7 +1418,6 @@ if (process.env.NODE_ENV !== 'test') {
   console.log('  - POST /api/completeness-local        - Check document completeness');
   console.log('  📄 Core Features:');
   console.log('  - GET  /api/health                    - Check system status');
-  console.log('  - POST /api/analyze                   - Analyze PDF structure');
   console.log('  - POST /api/extract                   - Extract data from PDF');
   console.log('  - POST /api/fill                      - Fill PDF form');
   console.log('  - POST /api/compare                   - Compare two PDFs');

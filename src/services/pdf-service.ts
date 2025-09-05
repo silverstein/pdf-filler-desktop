@@ -33,6 +33,27 @@ interface PDFInfo {
   info: any;
 }
 
+export interface QuickPDFInfo {
+  fileName: string;
+  fileSize: number;
+  fileSizeFormatted: string;
+  pages: number;
+  hasFormFields: boolean;
+  formFieldCount: number;
+  fieldTypes: Record<string, number>;
+  hasSignatures: boolean;
+  isEncrypted: boolean;
+  pdfVersion: string;
+  creationDate?: Date;
+  modificationDate?: Date;
+  creator?: string;
+  producer?: string;
+  title?: string;
+  author?: string;
+  subject?: string;
+  keywords?: string;
+}
+
 interface TextExtractionResult {
   text: string;
   pages: number;
@@ -439,6 +460,117 @@ export class PDFService {
         return field.value === null;
       default:
         return true;
+    }
+  }
+
+  /**
+   * Get quick technical info about a PDF without expensive operations
+   * This is designed to be FAST (<0.5 seconds)
+   */
+  async getQuickInfo(pdfPath: string): Promise<QuickPDFInfo> {
+    const startTime = Date.now();
+    
+    try {
+      // Get file stats
+      const stats = await fs.stat(pdfPath);
+      const fileName = path.basename(pdfPath);
+      const fileSize = stats.size;
+      
+      // Format file size
+      const formatFileSize = (bytes: number): string => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+        return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+      };
+      
+      // Read PDF for basic metadata (fast operation)
+      const pdfBytes = await fs.readFile(pdfPath);
+      
+      // Try to load PDF for form field detection
+      let pdfDoc: PDFDocument | null = null;
+      let formFieldCount = 0;
+      let fieldTypes: Record<string, number> = {};
+      let hasSignatures = false;
+      let isEncrypted = false;
+      
+      try {
+        pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: false });
+        const form = pdfDoc.getForm();
+        const fields = form.getFields();
+        
+        formFieldCount = fields.length;
+        
+        // Count field types
+        for (const field of fields) {
+          const type = this.getFieldType(field);
+          fieldTypes[type] = (fieldTypes[type] || 0) + 1;
+          if (type === 'signature') hasSignatures = true;
+        }
+      } catch (error: any) {
+        if (error.message.includes('password') || error.message.includes('encrypted')) {
+          isEncrypted = true;
+        }
+      }
+      
+      // Use pdf-parse for metadata extraction (fast)
+      let metadata: any = {};
+      let pages = 0;
+      let version = '';
+      
+      try {
+        const result = await pdfParse(pdfBytes);
+        pages = result.numpages;
+        metadata = result.metadata || {};
+        version = result.version || '';
+      } catch (error: any) {
+        // If pdf-parse fails, try to get page count from PDFDocument
+        if (pdfDoc) {
+          pages = pdfDoc.getPageCount();
+        }
+      }
+      
+      const quickInfo: QuickPDFInfo = {
+        fileName,
+        fileSize,
+        fileSizeFormatted: formatFileSize(fileSize),
+        pages,
+        hasFormFields: formFieldCount > 0,
+        formFieldCount,
+        fieldTypes,
+        hasSignatures,
+        isEncrypted,
+        pdfVersion: version,
+        creationDate: metadata.CreationDate,
+        modificationDate: metadata.ModDate,
+        creator: metadata.Creator,
+        producer: metadata.Producer,
+        title: metadata.Title,
+        author: metadata.Author,
+        subject: metadata.Subject,
+        keywords: metadata.Keywords
+      };
+      
+      const elapsed = Date.now() - startTime;
+      console.log(`[QuickInfo] Got PDF info in ${elapsed}ms for`, fileName);
+      
+      return quickInfo;
+      
+    } catch (error: any) {
+      console.error('Failed to get quick PDF info:', error);
+      // Return minimal info on error
+      return {
+        fileName: path.basename(pdfPath),
+        fileSize: 0,
+        fileSizeFormatted: 'Unknown',
+        pages: 0,
+        hasFormFields: false,
+        formFieldCount: 0,
+        fieldTypes: {},
+        hasSignatures: false,
+        isEncrypted: false,
+        pdfVersion: ''
+      };
     }
   }
 
