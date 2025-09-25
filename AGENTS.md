@@ -1,42 +1,19 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `src/`: TypeScript sources — `electron.ts` (Electron main), `server.ts` (Express API), `preload.ts`, `services/` (PDF, CSV, Gemini, profiles), `utils/`, `types/`.
-- `public/`: Static UI assets (e.g., `index.html`, themes).
-- `assets/`: App icons and tray assets.
-- `gemini-cli-local/`: Local Gemini CLI; credentials live under `.gemini` (git-ignored).
-- `uploads/`, `temp/`: Ephemeral files; safe to delete.
-- `dist/`: Compiled JS and packaged app artifacts.
-- `test-pdfs/`: Sample PDFs for manual/verification tests.
+Source lives in `src/`, with `electron.ts` handling the main Electron process, `server.ts` exposing the Express API, and domain helpers under `services/`, `utils/`, and `types/`. UI assets stay in `public/`, while icons and tray art sit in `assets/`. Generated JavaScript and packaged builds land in `dist/`. Temporary artifacts (`uploads/`, `temp/`) can be cleared safely, and `test-pdfs/` provides fixtures for manual and scripted checks. The Gemini CLI shim is in `gemini-cli-local/`; its `.gemini/` credentials directory is git-ignored.
 
 ## Build, Test, and Development Commands
-- `npm start`: Compile TypeScript then launch Electron app.
-- `npm run electron`: Same as `npm start`.
-- `npm run dev`: Watch/auto-restart server (API-only dev loop).
-- `npm run server` | `npm run server:dev`: Start API (built | ts-node).
-- `npm run build:ts`: Type-check and emit JS to `dist/`.
-- `npm run build`: Package app with electron-builder (+ post-build copy).
-- `npm run setup`: Guided setup (.env, deps, Gemini auth hints).
-- `npm run gemini-auth`: Open Gemini CLI OAuth; `npm run gemini` to invoke CLI.
-- `npm run test:ai`: Run `src/test-ai-service.ts` via ts-node.
+Run `npm start` (alias `npm run electron`) to compile TypeScript and launch the Electron shell. Use `npm run dev` for a server-only watch loop, or `npm run server` / `npm run server:dev` to start the API from built output or ts-node, respectively. `npm run build:ts` performs a strict type-check and emits JS to `dist/`, while `npm run build` packages the desktop app via electron-builder. Initial setup flows through `npm run setup`; you'll authenticate Gemini with `npm run gemini-auth` and can exercise the CLI via `npm run gemini`. AI service smoke tests run with `npm run test:ai`.
 
 ## Coding Style & Naming Conventions
-- TypeScript strict mode (see `tsconfig.json`). Use 2-space indent, single quotes, semicolons.
-- Naming: `camelCase` for vars/functions, `PascalCase` for classes/types, `SCREAMING_SNAKE_CASE` for env.
-- Files: kebab-case (`pdf-service.ts`); services may use `.service.ts` suffix.
-- Prefer small, focused modules in `src/services/` and helpers in `src/utils/`.
+TypeScript is in strict mode; format with 2-space indentation, single quotes, and semicolons. Name variables and functions in `camelCase`, classes and types in `PascalCase`, and environment variables in `SCREAMING_SNAKE_CASE`. File names follow kebab-case (`pdf-service.ts`), and service modules prefer the `.service.ts` suffix. Keep modules focused and colocate shared helpers in `src/utils/`.
 
 ## Testing Guidelines
-- No Jest/Mocha yet. Add lightweight TS test scripts (`src/test-*.ts`) and run with ts-node.
-- Use `test-pdfs/` for fixtures. Document manual steps in PRs (inputs, expected outputs).
-- Minimum: `npm run build:ts` passes; validate critical endpoints and Electron launch locally.
+Lightweight ts-node scripts (`src/test-*.ts`) act as unit or integration probes; mirror that pattern when adding coverage. Use `npm run build:ts` as a gate before commits, then validate Electron startup (`npm start`) and critical API flows. Reference assets in `test-pdfs/` when scripting PDF scenarios, and document any manual validation steps in PR descriptions.
 
 ## Commit & Pull Request Guidelines
-- Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`.
-- PRs should include: clear description, linked issues, screenshots/GIFs for UI, reproduction/test steps, and platform notes (macOS target).
-- Ensure lint/type-checks pass (`npm run build:ts`) and app runs (`npm start`).
+Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`). PRs should outline the change, link related issues, and include screenshots or GIFs for UI impacts—macOS remains the primary target. List the commands you ran (e.g., `npm run build:ts`, `npm start`) and note any manual test matrix.
 
 ## Security & Configuration Tips
-- Do not commit secrets. Keep `gemini-cli-local/.gemini/`, `uploads/`, and `temp/` out of VCS.
-- Configure via `.env` (e.g., `PORT`, rate limits, file size caps). Example file is auto-created by `npm run setup`.
-- Packaged app writes logs to `userData/app.log`; avoid logging sensitive PDF contents.
+Never commit credentials; ensure `gemini-cli-local/.gemini/`, `uploads/`, and `temp/` stay untracked. Configure runtime options through `.env` (created via `npm run setup`), covering ports, rate limits, and file caps. Packaged apps log to `userData/app.log`; avoid capturing sensitive PDF contents.

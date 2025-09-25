@@ -4,7 +4,7 @@
   "description": "Free PDF processing powered by Gemini CLI",
   "main": "dist/electron.js",
   "scripts": {
-    "build:ts": "tsc",
+    "build:ts": "tsc && mkdir -p dist/utils && cp -r src/utils/*.js dist/utils/ 2>/dev/null || true",
     "watch:ts": "tsc -w",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean && npm run build:ts",

@@ -123,7 +123,7 @@ npm test                 # same as npm run test:scripts
 # Run specific ts-node suites
 npm run test:csv         # CSVService sanity
 npm run test:pdf         # PDFService (creates a temp PDF with a form)
-npm run test:profiles    # ProfileService (uses a temp HOME dir)
+**npm run test:pr**ofiles    # ProfileService (uses a temp HOME dir)
 npm run test:api         # Server health endpoint smoke test
 
 # Vitest unit/integration tests (install dev deps first)

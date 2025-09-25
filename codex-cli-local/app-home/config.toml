@@ -1,0 +1,5 @@
+model = "gpt-5"
+model_reasoning_effort = "medium"
+temperature = 0.1
+preferred_auth_method = "chatgpt"
+tools = []

@@ -21,6 +21,7 @@ import { updater } from './auto-updater';
 import { ensureCodexConfig } from './codex-config-generator';
 import CodexAuthHandler from './codex-auth-handler';
 import { checkCodexInstalled } from './codex-installer';
+import ClaudeAuthHandler from './claude-auth-handler';
 import TerminalWindow from './terminal-window';
 
 // Type definitions
@@ -475,7 +476,11 @@ ipcMain.handle('clear-auth', async (): Promise<{ success: boolean; error?: strin
     const codexAuthHandler = new CodexAuthHandler();
     await codexAuthHandler.clearAuth();
     
-    log('Both Gemini and Codex authentication cleared');
+    // Clear Claude auth
+    const claudeAuthHandler = new ClaudeAuthHandler();
+    await claudeAuthHandler.clearAuth();
+    
+    log('All provider authentications cleared');
     return { success: true };
   } catch (error: any) {
     log(`Clear auth error: ${error.message}`);
@@ -513,21 +518,65 @@ ipcMain.handle('start-codex-auth', async (): Promise<{ success: boolean; error?:
   }
 });
 
-// Combined auth status: true if either Gemini or Codex authenticated
-ipcMain.handle('check-any-auth', async (): Promise<{ authenticated: boolean; providers: { gemini: boolean; codex: boolean }; email?: string; detail?: string; error?: string }> => {
+// Combined auth status: true if any provider is authenticated
+ipcMain.handle('check-any-auth', async (): Promise<{ authenticated: boolean; providers: { gemini: boolean; codex: boolean; claude: boolean }; email?: string; detail?: string; error?: string }> => {
   try {
     const g = new TerminalAuthHandler();
     const gStatus = await g.checkAuthStatus();
     const c = new CodexAuthHandler();
     const cStatus = await c.checkAuthStatus();
+    const cl = new ClaudeAuthHandler();
+    const clStatus = await cl.checkAuthStatus();
     return {
-      authenticated: !!(gStatus?.authenticated || cStatus?.authenticated),
-      providers: { gemini: !!gStatus?.authenticated, codex: !!cStatus?.authenticated },
+      authenticated: !!(gStatus?.authenticated || cStatus?.authenticated || clStatus?.authenticated),
+      providers: { 
+        gemini: !!gStatus?.authenticated, 
+        codex: !!cStatus?.authenticated,
+        claude: !!clStatus?.authenticated 
+      },
       email: gStatus?.email,
-      detail: cStatus?.detail
+      detail: cStatus?.detail || (clStatus?.authenticated ? 'Claude Pro/Max' : undefined)
     };
   } catch (e: any) {
-    return { authenticated: false, providers: { gemini: false, codex: false }, error: e.message };
+    return { authenticated: false, providers: { gemini: false, codex: false, claude: false }, error: e.message };
+  }
+});
+
+// Claude CLI auth: check status
+ipcMain.handle('check-claude-auth', async (): Promise<{ installed: boolean; authenticated: boolean; detail?: string; error?: string }> => {
+  try {
+    const handler = new ClaudeAuthHandler();
+    const status = await handler.checkAuthStatus();
+    return { 
+      installed: status.installed, 
+      authenticated: status.authenticated, 
+      detail: status.detail 
+    };
+  } catch (error: any) {
+    log(`Claude auth check error: ${error.message}`);
+    return { installed: false, authenticated: false, error: error.message };
+  }
+});
+
+// Claude CLI auth: start login flow
+ipcMain.handle('start-claude-auth', async (): Promise<{ success: boolean; error?: string }> => {
+  try {
+    log('Starting Claude authentication flow...');
+    const handler = new ClaudeAuthHandler();
+    const result = await handler.startAuth();
+    if (result.success) {
+      log('Claude authentication successful');
+      // Reload the window to reflect the authenticated state
+      if (mainWindow) {
+        mainWindow.reload();
+      }
+    } else {
+      log(`Claude authentication failed: ${result.error || 'unknown error'}`);
+    }
+    return result;
+  } catch (error: any) {
+    log(`Claude auth start error: ${error.message}`);
+    return { success: false, error: error.message };
   }
 });
 

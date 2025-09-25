@@ -5,6 +5,7 @@ import os from 'os';
 
 export class CodexCLIService {
   private codexPath: string | null = null;
+  private codexHomePath: string | null = null;
   private projectRoot: string | null = null;
 
   private getProjectRoot(): string {
@@ -66,6 +67,37 @@ export class CodexCLIService {
     return null;
   }
 
+  private async resolveCodexHome(): Promise<string | null> {
+    if (this.codexHomePath !== null) return this.codexHomePath;
+
+    const projectRoot = this.getProjectRoot();
+    const candidates: string[] = [];
+
+    // Development build keeps a bundled CODEX_HOME inside the workspace
+    candidates.push(path.join(projectRoot, 'codex-cli-local', 'app-home'));
+
+    // Packaged builds unpack assets under app.asar.unpacked
+    if (typeof process.resourcesPath === 'string' && process.resourcesPath.length > 0) {
+      candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'codex-cli-local', 'app-home'));
+      candidates.push(path.join(process.resourcesPath, 'codex-cli-local', 'app-home'));
+    }
+
+    const seen = new Set<string>();
+    for (const candidate of candidates) {
+      const normalized = path.normalize(candidate);
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      try {
+        await fs.access(path.join(normalized, 'config.toml'));
+        this.codexHomePath = normalized;
+        return normalized;
+      } catch {}
+    }
+
+    this.codexHomePath = null;
+    return null;
+  }
+
   async checkAuthStatus(): Promise<boolean> {
     // Auth recorded in ~/.codex/auth.json
     try {
@@ -82,19 +114,30 @@ export class CodexCLIService {
     const bin = await this.resolveCodexPath();
     if (!bin) throw new Error('Codex CLI not found');
 
+    const codexHome = await this.resolveCodexHome();
     return new Promise((resolve, reject) => {
-      // Order matters: top-level --config, then subcommand exec with its flags
-      const args = ['--config', 'preferred_auth_method="chatgpt"', 'exec', '--skip-git-repo-check', prompt];
+      const args: string[] = [];
+      if (!codexHome) {
+        // Fall back to inline override to preserve ChatGPT auth flow
+        args.push('--config', 'preferred_auth_method="chatgpt"');
+      }
+      // Order matters: top-level config overrides, then subcommand exec with its flags
+      args.push('exec', '--skip-git-repo-check', prompt);
       const workingDir = opts?.cwd || this.getProjectRoot();
+      const envVars = { ...process.env };
+      if (codexHome) {
+        envVars.CODEX_HOME = codexHome;
+      }
       
       if (process.env.DEBUG_CODEX === '1') {
         console.log('[CodexCLI] bin:', bin);
+        console.log('[CodexCLI] codexHome:', codexHome || 'using user home');
         console.log('[CodexCLI] args:', JSON.stringify(args));
         console.log('[CodexCLI] cwd:', workingDir);
       }
       const proc = spawn(bin, args, {
         cwd: workingDir,
-        env: { ...process.env }
+        env: envVars
       });
       let out = '';
       let err = '';
@@ -114,6 +157,36 @@ export class CodexCLIService {
       proc.on('close', (code) => { clearTimeout(t); if (code === 0) resolve(out.trim()); else reject(new Error(err || 'Codex failed')); });
       proc.on('error', (e) => { clearTimeout(t); reject(e); });
     });
+  }
+
+  // Clear authentication (logout)
+  async clearAuth(): Promise<void> {
+    const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
+    const targets = [
+      path.join(codexHome, 'auth.json'),
+      path.join(codexHome, 'session.json'),
+      path.join(codexHome, 'session.lock')
+    ];
+
+    const failures: string[] = [];
+
+    for (const target of targets) {
+      try {
+        await fs.unlink(target);
+        if (process.env.DEBUG_CODEX === '1') {
+          console.log(`[CodexCLI] Removed ${target}`);
+        }
+      } catch (error: any) {
+        if (error?.code === 'ENOENT') {
+          continue;
+        }
+        failures.push(`${path.basename(target)}: ${error?.message || error}`);
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new Error(`Unable to clear Codex auth: ${failures.join('; ')}`);
+    }
   }
 }
 

@@ -1,0 +1,4 @@
+model = "default"
+temperature = 0.1
+preferred_auth_method = "chatgpt"
+tools = []

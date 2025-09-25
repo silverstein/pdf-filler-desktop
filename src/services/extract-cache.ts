@@ -1,4 +1,4 @@
-export type ExtractProvider = 'gemini' | 'chatgpt';
+export type ExtractProvider = 'gemini' | 'chatgpt' | 'claude';
 
 export interface CachedExtract {
   data: any;

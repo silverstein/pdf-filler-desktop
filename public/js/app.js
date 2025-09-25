@@ -282,30 +282,76 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('authSection').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
                 document.getElementById('geminiStatus').style.background = 'var(--success)';
-                // Determine active provider: prefer Codex only if Gemini not signed in
+                // Determine active provider: Priority is Claude > Gemini > Codex
                 if (authAny && authAny.providers) {
-                    if (authAny.providers.codex && !authAny.providers.gemini) {
-                        activeProvider = 'chatgpt';
+                    if (authAny.providers.claude) {
+                        activeProvider = 'claude';
                     } else if (authAny.providers.gemini) {
                         activeProvider = 'gemini';
+                    } else if (authAny.providers.codex) {
+                        activeProvider = 'chatgpt';
                     } else {
                         activeProvider = 'unknown';
                     }
                 }
-                // Toggle ChatGPT sign-in menu item visibility based on Codex auth
+                
+                // Toggle sign-in menu items based on auth status
                 try {
                     const chatgptMenuBtn = document.getElementById('chatgptSignInMenu');
+                    const claudeMenuBtn = document.getElementById('claudeSignInMenu');
+                    const logoutMenuBtn = document.getElementById('logoutMenu');
                     if (chatgptMenuBtn) {
                         chatgptMenuBtn.style.display = authAny && authAny.providers && authAny.providers.codex ? 'none' : 'flex';
                     }
+                    if (claudeMenuBtn) {
+                        claudeMenuBtn.style.display = authAny && authAny.providers && authAny.providers.claude ? 'none' : 'flex';
+                    }
+                    // Show logout button when any provider is authenticated
+                    if (logoutMenuBtn) {
+                        logoutMenuBtn.style.display = isAuthenticated ? 'flex' : 'none';
+                    }
                 } catch {}
-                // Show which provider is connected (label only)
-                if (activeProvider === 'chatgpt') {
+                
+                // Show which provider is connected with clear labeling
+                let providerDisplay = '';
+                let providerIcon = '';
+                let providerBadgeText = '';
+                let providerBadgeStyle = '';
+                
+                if (activeProvider === 'claude') {
+                    providerDisplay = 'Claude AI';
+                    providerIcon = '<i data-lucide="brain" style="width: 16px; height: 16px;"></i>';
+                    providerBadgeText = '🧠 Claude Pro';
+                    providerBadgeStyle = 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;';
+                    document.getElementById('geminiStatusText').textContent = 'Claude Connected';
+                    document.getElementById('accountEmail').innerHTML = `${providerIcon}<span>Powered by Claude</span>`;
+                } else if (activeProvider === 'chatgpt') {
+                    providerDisplay = 'ChatGPT';
+                    providerIcon = '<i data-lucide="message-square" style="width: 16px; height: 16px;"></i>';
+                    providerBadgeText = '💬 ChatGPT';
+                    providerBadgeStyle = 'background: linear-gradient(135deg, #10a37f 0%, #0d8f6f 100%); color: white;';
                     document.getElementById('geminiStatusText').textContent = 'ChatGPT Connected';
-                    document.getElementById('accountEmail').innerHTML = `<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>ChatGPT Connected</span>`;
+                    document.getElementById('accountEmail').innerHTML = `${providerIcon}<span>Powered by ChatGPT</span>`;
+                } else if (activeProvider === 'gemini') {
+                    providerDisplay = 'Google Gemini';
+                    providerIcon = '<i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>';
+                    providerBadgeText = '✨ Gemini Free';
+                    providerBadgeStyle = 'background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%); color: white;';
+                    document.getElementById('geminiStatusText').textContent = userEmail || 'Gemini Connected';
+                    document.getElementById('accountEmail').innerHTML = `${providerIcon}<span>Powered by Gemini</span>`;
                 } else {
-                    document.getElementById('geminiStatusText').textContent = userEmail || 'Connected';
-                    document.getElementById('accountEmail').innerHTML = `<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>${userEmail || 'Connected'}</span>`;
+                    providerBadgeText = 'No AI Connected';
+                    providerBadgeStyle = 'background: var(--secondary); color: var(--text-secondary);';
+                    document.getElementById('geminiStatusText').textContent = 'Connected';
+                    document.getElementById('accountEmail').innerHTML = `<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>Connected</span>`;
+                }
+                
+                // Update the provider badge
+                const providerBadge = document.getElementById('providerBadge');
+                const providerBadgeTextEl = document.getElementById('providerBadgeText');
+                if (providerBadge && providerBadgeTextEl) {
+                    providerBadgeTextEl.textContent = providerBadgeText;
+                    providerBadge.style = providerBadgeStyle + ' font-weight: 600; padding: 4px 12px; border-radius: 12px;';
                 }
                 lucide.createIcons();
             } else {
@@ -336,14 +382,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Sign out function
     async function signOut() {
-        if (window.electronAPI) {
-            const confirmed = confirm('Are you sure you want to sign out? You will need to re-authenticate with Google to use the app again.');
-            if (confirmed) {
+        const confirmed = confirm('Are you sure you want to sign out? You will need to re-authenticate to use the app again.');
+        if (!confirmed) return;
+
+        try {
+            // Call server logout endpoint to clear all provider authentications
+            const response = await fetch('/api/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+            console.log('Logout result:', result);
+
+            // Also clear local Gemini auth if in Electron
+            if (window.electronAPI) {
                 await window.electronAPI.clearAuth();
-                // Reload the page to show auth screen
-                window.location.reload();
             }
+
+            // Show success message
+            if (result.success) {
+                const providers = [];
+                if (result.providers?.claude?.success) providers.push('Claude');
+                if (result.providers?.gemini?.success) providers.push('Gemini');
+                if (result.providers?.codex?.success) providers.push('ChatGPT');
+
+                if (providers.length > 0) {
+                    alert(`Successfully signed out from: ${providers.join(', ')}`);
+                }
+            }
+
+            // Reload the page to show auth screen
+            window.location.reload();
+        } catch (error) {
+            console.error('Logout error:', error);
+            alert('Error during logout. Please try again.');
         }
+    }
+
+    // Handle logout from menu
+    async function handleLogout() {
+        await signOut();
     }
 
     // Switch account function
@@ -452,6 +531,124 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.innerHTML = '<i data-lucide="message-circle" style="width: 20px; height: 20px; margin-right: 8px;"></i>Sign in with ChatGPT';
             lucide.createIcons();
             alert('Failed to start ChatGPT authentication: ' + (e.message || 'unknown error'));
+        }
+    }
+
+    // Handle Claude Sign In
+    async function handleClaudeSignIn() {
+        if (!window.electronAPI) return;
+        const btn = document.getElementById('claudeSignIn');
+        if (!btn) return;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="spin" style="width: 20px; height: 20px; margin-right: 8px;"></i>Starting Claude authentication...';
+        lucide.createIcons();
+        
+        try {
+            const result = await window.electronAPI.startClaudeAuth();
+            if (result.success) {
+                btn.innerHTML = '<i data-lucide="check" style="width: 20px; height: 20px; margin-right: 8px;"></i>Complete sign-in in Terminal...';
+                // Check status in loop for a while
+                let interval = setInterval(async () => {
+                    const status = await window.electronAPI.checkClaudeAuth();
+                    if (status && status.authenticated) {
+                        clearInterval(interval);
+                        btn.innerHTML = '<i data-lucide="check" style="width: 20px; height: 20px; margin-right: 8px;"></i>Authenticated!';
+                        setTimeout(() => {
+                            checkAuthStatus();
+                        }, 1000);
+                    }
+                }, 3000);
+                // Give up after 5 minutes
+                setTimeout(() => {
+                    clearInterval(interval);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="brain" style="width: 20px; height: 20px; margin-right: 8px;"></i>Sign in with Claude';
+                    lucide.createIcons();
+                }, 300000);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="brain" style="width: 20px; height: 20px; margin-right: 8px;"></i>Sign in with Claude';
+                lucide.createIcons();
+                alert('Failed to start Claude authentication: ' + (result.error || 'unknown error'));
+            }
+        } catch (e) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="brain" style="width: 20px; height: 20px; margin-right: 8px;"></i>Sign in with Claude';
+            lucide.createIcons();
+            alert('Failed to start Claude authentication: ' + (e.message || 'unknown error'));
+        }
+    }
+
+    // Handle Logout
+    async function handleLogout() {
+        if (!confirm('Are you sure you want to sign out from all providers?')) {
+            return;
+        }
+
+        try {
+            // Show loading state
+            const accountBtn = document.getElementById('accountBtn');
+            const accountEmail = document.getElementById('accountEmail');
+            const accountIcon = document.getElementById('accountIcon');
+            const providerBadgeText = document.getElementById('providerBadgeText');
+
+            if (accountEmail) accountEmail.textContent = 'Signing out...';
+            if (providerBadgeText) providerBadgeText.textContent = 'Signing out...';
+
+            // Call logout API
+            const response = await fetch('/api/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Reset UI to signed-out state
+                isAuthenticated = false;
+                userEmail = null;
+                activeProvider = 'unknown';
+
+                // Hide main app, show auth section
+                document.getElementById('mainApp').style.display = 'none';
+                document.getElementById('authSection').style.display = 'block';
+
+                // Update account button
+                if (accountEmail) accountEmail.textContent = 'Sign In';
+                if (accountIcon) accountIcon.innerHTML = '<i data-lucide="user" style="width: 18px; height: 18px;"></i>';
+
+                // Hide logout button, show sign-in options
+                const logoutBtn = document.getElementById('logoutMenu');
+                const chatgptBtn = document.getElementById('chatgptSignInMenu');
+                const claudeBtn = document.getElementById('claudeSignInMenu');
+
+                if (logoutBtn) logoutBtn.style.display = 'none';
+                if (chatgptBtn) chatgptBtn.style.display = 'flex';
+                if (claudeBtn) claudeBtn.style.display = 'flex';
+
+                // Update provider badge
+                if (providerBadgeText) {
+                    providerBadgeText.textContent = 'Not Signed In';
+                    const providerBadge = document.getElementById('providerBadge');
+                    if (providerBadge) providerBadge.style.background = 'var(--surface-secondary)';
+                }
+
+                // Clear any stored files or results
+                selectedFile = null;
+                currentResult = null;
+                currentFormFields = null;
+
+                // Refresh Lucide icons
+                setTimeout(() => lucide.createIcons(), 10);
+
+                showSuccess('Successfully signed out from all providers');
+            } else {
+                showError('Failed to sign out: ' + (result.message || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+            showError('Failed to sign out: ' + error.message);
         }
     }
 
@@ -2815,6 +3012,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.switchAccount = switchAccount;
   window.handleGoogleSignIn = handleGoogleSignIn;
   window.handleChatGPTSignIn = handleChatGPTSignIn;
+  window.handleClaudeSignIn = handleClaudeSignIn;
+  window.handleLogout = handleLogout;
   window.resetUpload = resetUpload;
   window.copyToClipboard = copyToClipboard;
   window.downloadResult = downloadResult;

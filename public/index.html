@@ -51,10 +51,19 @@
                             <i data-lucide="message-circle" style="width: 16px; height: 16px;"></i>
                             <span>Sign in with ChatGPT</span>
                         </button>
+                        <button id="claudeSignInMenu" class="account-menu-item" onclick="handleClaudeSignIn()">
+                            <i data-lucide="brain" style="width: 16px; height: 16px;"></i>
+                            <span>Sign in with Claude</span>
+                        </button>
+                        <div class="account-menu-separator"></div>
+                        <button id="logoutMenu" class="account-menu-item" onclick="handleLogout()" style="display: none;">
+                            <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+                            <span>Sign Out</span>
+                        </button>
                     </div>
                 </div>
-                <div class="status-indicator">
-                    <span>Free Tier</span>
+                <div class="status-indicator" id="providerBadge">
+                    <span id="providerBadgeText">Detecting...</span>
                 </div>
             </div>
             <button class="icon-btn" id="settingsBtn" onclick="toggleSettings()" title="Settings">
@@ -114,6 +123,11 @@
                 <button id="chatgptSignIn" class="google-signin-btn" style="margin-top: 0.75rem; display: inline-flex; align-items: center;" onclick="handleChatGPTSignIn()">
                     <i data-lucide="message-circle" style="width: 20px; height: 20px; margin-right: 8px;"></i>
                     Sign in with ChatGPT
+                </button>
+                
+                <button id="claudeSignIn" class="google-signin-btn" style="margin-top: 0.75rem; display: inline-flex; align-items: center;" onclick="handleClaudeSignIn()">
+                    <i data-lucide="brain" style="width: 20px; height: 20px; margin-right: 8px;"></i>
+                    Sign in with Claude
                 </button>
                 
                 <div class="auth-info">

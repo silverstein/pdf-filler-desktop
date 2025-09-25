@@ -1,0 +1,88 @@
+PDF FILLER DEBUG OUTPUT ANALYSIS
+=================================
+Date: 2025-09-25
+Time Period: 04:20:20 - 04:22:05 UTC
+
+SUMMARY OF EVENTS
+-----------------
+Two different API endpoints were called when processing the PDF:
+1. /api/intelligence-local - Using Codex (ChatGPT) - Completed in 27 seconds
+2. /api/extract-local - Using Claude - Completed in 18 seconds
+
+Both completed successfully but data didn't display in the UI.
+
+DETAILED TIMELINE
+-----------------
+
+[2025-09-25T04:20:25.689Z] File selection requested
+
+[2025-09-25T04:20:28.547Z] File selected: /Users/silverbook/Downloads/your_legacy_plan.pdf
+
+=== FIRST API CALL: INTELLIGENCE ENDPOINT (Using Codex) ===
+
+[2025-09-25T04:20:28.562Z] Server: [Intelligence +1ms] Using Codex (ChatGPT) extract-first
+
+[2025-09-25T04:20:28.616Z] Server: [QuickInfo] Got PDF info in 56ms for your_legacy_plan.pdf
+
+[2025-09-25T04:20:28.622Z] Server: [Intelligence +61ms] readText+fieldsMs=60
+
+[2025-09-25T04:20:28.622Z] Server: [Intelligence +61ms] start extract (timeoutMs=116939)
+
+[2025-09-25T04:20:56.057Z] Server: [Intelligence +27495ms] extractMs=27434
+>>> CODEX EXTRACTION COMPLETED SUCCESSFULLY (27.4 seconds)
+
+=== SECOND API CALL: EXTRACT ENDPOINT (Using Claude) ===
+
+[2025-09-25T04:21:31.501Z] Server: Checking Claude auth by running: /Users/silverbook/.local/bin/claude [ '-p' ]
+
+[2025-09-25T04:21:41.093Z] Server: Claude auth check complete. Code: 0
+Output: 2
+
+[2025-09-25T04:21:41.093Z] Server: [route:/api/extract-local] Provider: claude
+
+[2025-09-25T04:21:41.093Z] Server: Calling Claude with prompt: Read the PDF file at /Users/silverbook/Library/Application Support/PDF Filler/temp/1758774091498-you...
+
+[2025-09-25T04:22:05.574Z] Server: Claude output chunk: {"type":"result","subtype":"success","is_error":false,"duration_ms":18209,"duration_api_ms":18509,"n
+>>> OUTPUT APPEARS TRUNCATED IN LOG
+
+[2025-09-25T04:22:05.616Z] Server: Claude CLI closed with code: 0
+Full output length: 2903
+>>> CLAUDE EXTRACTION COMPLETED SUCCESSFULLY (24 seconds, 2903 characters of output)
+
+KEY OBSERVATIONS
+----------------
+1. The app appears to call multiple endpoints automatically:
+   - /api/intelligence-local for AI insights
+   - /api/extract-local for data extraction
+
+2. Different providers were used:
+   - Intelligence endpoint used Codex (despite ChatGPT being selected in UI)
+   - Extract endpoint used Claude (automatic fallback?)
+
+3. Claude output format issue:
+   - Claude returns wrapped format: {"type":"result","subtype":"success",...}
+   - This is Claude CLI's wrapper, not the raw extraction data
+   - The actual extraction data is likely in a "content" field
+
+4. Both operations completed successfully:
+   - No errors in console
+   - Both returned data
+   - But UI didn't display results
+
+LIKELY ISSUE
+------------
+The Claude CLI service needs to parse the wrapped output format and extract the actual content.
+The output shows Claude's metadata wrapper instead of just the extraction results.
+
+The server code expects pure JSON extraction data but receives:
+{
+  "type": "result",
+  "subtype": "success",
+  "is_error": false,
+  "duration_ms": 18209,
+  "content": "... actual extraction data here ..."
+}
+
+RECOMMENDATION
+--------------
+Update claude-cli.service.ts to parse this wrapper format and return only the content field.

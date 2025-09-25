@@ -442,4 +442,23 @@ Return ONLY the JSON array.`;
       rateLimiter: { ...this.rateLimiter }
     };
   }
+
+  // Clear authentication (logout)
+  async clearAuth(): Promise<void> {
+    // Gemini CLI doesn't have a built-in logout command,
+    // but we can clear the cached credentials
+    try {
+      const credsPath = path.join(this.localGeminiHome, '.gemini', 'oauth_creds.json');
+      const accountsPath = path.join(this.localGeminiHome, '.gemini', 'google_accounts.json');
+
+      // Remove credential files if they exist
+      const fs = require('fs').promises;
+      await fs.unlink(credsPath).catch(() => {});
+      await fs.unlink(accountsPath).catch(() => {});
+
+      console.log('Gemini authentication cleared');
+    } catch (error) {
+      console.error('Failed to clear Gemini auth:', error);
+    }
+  }
 }
