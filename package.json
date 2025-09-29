@@ -87,7 +87,7 @@
   },
   "build": {
     "appId": "com.gemini.pdffiller",
-    "productName": "PDF Filler",
+    "productName": "PDF Read Analyze Write",
     "icon": "assets/icon.icns",
     "directories": {
       "output": "dist"

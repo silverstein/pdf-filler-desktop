@@ -14,48 +14,54 @@ import { ProfileService } from './services/profile-service';
 import { PDFIntelligenceService } from './services/pdf-intelligence.service';
 import { getExtract as getCachedExtract, setExtract as setCachedExtract, getInFlight, setInFlight, clearInFlight } from './services/extract-cache';
 
+type ProviderKey = 'gemini' | 'codex' | 'claude';
+
+interface ProviderSelection {
+  provider?: string;
+}
+
 // Type definitions for request bodies
-interface ExtractLocalRequest {
+interface ExtractLocalRequest extends ProviderSelection {
   filePath: string;
   template?: any;
 }
 
-interface FillLocalRequest {
+interface FillLocalRequest extends ProviderSelection {
   filePath: string;
   fillData?: Record<string, any>;
   outputPath?: string;
   password?: string;
 }
 
-interface ValidateLocalRequest {
+interface ValidateLocalRequest extends ProviderSelection {
   filePath: string;
   requiredFields?: string[];
 }
 
-interface ReadFieldsLocalRequest {
+interface ReadFieldsLocalRequest extends ProviderSelection {
   filePath: string;
   password?: string;
 }
 
-interface FillPDFLocalRequest {
+interface FillPDFLocalRequest extends ProviderSelection {
   filePath: string;
   data: Record<string, any>;
   outputPath: string;
   password?: string;
 }
 
-interface ValidatePDFLocalRequest {
+interface ValidatePDFLocalRequest extends ProviderSelection {
   filePath: string;
   requiredFields: string[];
   password?: string;
 }
 
-interface ExtractTextLocalRequest {
+interface ExtractTextLocalRequest extends ProviderSelection {
   filePath: string;
   password?: string;
 }
 
-interface BulkFillLocalRequest {
+interface BulkFillLocalRequest extends ProviderSelection {
   templatePath: string;
   csvPath: string;
   outputDir: string;
@@ -158,32 +164,81 @@ function parseLLMJson(raw: string): any {
   return JSON.parse(jsonStr);
 }
 
-// Helper: select the best available provider
-async function selectProvider(): Promise<'gemini' | 'codex' | 'claude'> {
-  try {
-    const [geminiOk, codexOk, claudeOk] = await Promise.all([
-      gemini.checkAuthStatus(),
-      codex.checkAuthStatus(),
-      claude.checkAuthStatus()
-    ]);
-    
-    // Priority: Claude > Gemini > Codex
-    // Claude is newest and most capable for PDF understanding
-    if (claudeOk) return 'claude';
-    if (geminiOk) return 'gemini';
-    if (codexOk) return 'codex';
-    
-    // Default to Gemini if nothing is authenticated
-    return 'gemini';
-  } catch {
-    return 'gemini';
+const providerOrder: ProviderKey[] = ['claude', 'gemini', 'codex'];
+
+type ProviderAvailability = Record<ProviderKey, boolean>;
+
+function providerDisplayName(provider: ProviderKey): string {
+  switch (provider) {
+    case 'claude':
+      return 'Claude';
+    case 'codex':
+      return 'ChatGPT';
+    default:
+      return 'Gemini';
   }
 }
 
-// Legacy helper for backward compatibility
-async function preferCodex(): Promise<boolean> {
-  const provider = await selectProvider();
-  return provider === 'codex';
+function normalizeProviderInput(value: any): ProviderKey | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'claude') return 'claude';
+  if (normalized === 'gemini' || normalized === 'google' || normalized === 'gemini-ai') return 'gemini';
+  if (normalized === 'codex' || normalized === 'chatgpt' || normalized === 'gpt-5') return 'codex';
+  return null;
+}
+
+async function getProviderAvailability(): Promise<ProviderAvailability> {
+  const [geminiOk, codexOk, claudeOk] = await Promise.all([
+    gemini.checkAuthStatus().catch(() => false),
+    codex.checkAuthStatus().catch(() => false),
+    claude.checkAuthStatus().catch(() => false)
+  ]);
+
+  return {
+    gemini: !!geminiOk,
+    codex: !!codexOk,
+    claude: !!claudeOk
+  };
+}
+
+async function resolveProvider(preferred?: ProviderKey) {
+  const availability = await getProviderAvailability();
+  if (preferred) {
+    if (!availability[preferred]) {
+      return { provider: null, availability, preferred, preferenceSatisfied: false as const };
+    }
+    return { provider: preferred, availability, preferred, preferenceSatisfied: true as const };
+  }
+  const provider = providerOrder.find((p) => availability[p]) || null;
+  return { provider, availability, preferred: undefined, preferenceSatisfied: provider !== null };
+}
+
+async function resolveProviderOrRespond(req: Request, res: Response, overridePreferred?: ProviderKey) {
+  const preferredInput = overridePreferred || normalizeProviderInput((req.body as any)?.provider ?? (req.query as any)?.provider);
+  const resolution = await resolveProvider(preferredInput ?? undefined);
+
+  res.setHeader('X-AI-Providers', JSON.stringify(resolution.availability));
+  if (preferredInput) {
+    res.setHeader('X-AI-Provider-Preferred', preferredInput);
+  }
+
+  if (!resolution.provider) {
+    if (preferredInput) {
+      const displayName = providerDisplayName(preferredInput);
+      res.status(409).json({ error: `${displayName} is not available. Please sign in and try again.` });
+    } else {
+      res.status(503).json({ error: 'No AI providers are authenticated. Please connect Gemini, ChatGPT, or Claude.' });
+    }
+    return null;
+  }
+
+  res.setHeader('X-AI-Provider', resolution.provider);
+  res.setHeader('X-AI-Provider-Preference-Honored', preferredInput ? (resolution.provider === preferredInput ? '1' : '0') : '1');
+  res.setHeader('X-AI-Provider-Reason', preferredInput ? 'user' : 'auto');
+
+  return { provider: resolution.provider, availability: resolution.availability, preferred: preferredInput };
 }
 
 // ---- Claude-backed helpers ----
@@ -283,14 +338,15 @@ const upload = multer({
 
 // Health check endpoint
 app.get('/api/health', async (req: Request, res: Response) => {
-  const [geminiAvailable, geminiAuth, codexAuth, claudeAuth] = await Promise.all([
+  const [geminiAvailable, geminiAuth, codexAuth, claudeAuth, availability] = await Promise.all([
     gemini.checkGeminiCLI(),
     gemini.checkAuthStatus().catch(() => false),
     codex.checkAuthStatus().catch(() => false),
-    claude.checkAuthStatus().catch(() => false)
+    claude.checkAuthStatus().catch(() => false),
+    getProviderAvailability()
   ]);
   
-  const activeProvider = await selectProvider();
+  const activeProvider = providerOrder.find((p) => availability[p]) || null;
   
   res.json({
     status: 'ok',
@@ -306,6 +362,7 @@ app.get('/api/health', async (req: Request, res: Response) => {
         authenticated: claudeAuth 
       }
     },
+    availability,
     activeProvider,
     message: 'Multi-provider PDF processing ready!'
   });
@@ -405,7 +462,7 @@ app.post('/api/quick-info-local', async (req: Request<{}, {}, { filePath: string
 });
 
 // Get quick intelligence about a PDF
-app.post('/api/intelligence-local', async (req: Request<{}, {}, { filePath: string; forceRefresh?: boolean }>, res: Response) => {
+app.post('/api/intelligence-local', async (req: Request<{}, {}, { filePath: string; forceRefresh?: boolean; provider?: string }>, res: Response) => {
   try {
     const { filePath, forceRefresh = false } = req.body;
     
@@ -420,14 +477,32 @@ app.post('/api/intelligence-local', async (req: Request<{}, {}, { filePath: stri
       return res.status(404).json({ error: 'File not found' });
     }
     
+    const providerContext = await resolveProviderOrRespond(req, res);
+    if (!providerContext) {
+      return;
+    }
+    const provider = providerContext.provider;
+    if (provider === 'claude') {
+      return res.status(501).json({ error: 'Claude quick intelligence is coming soon. Please choose ChatGPT or Gemini for this feature.' });
+    }
+    const forcedProvider = provider === 'codex' ? 'codex' : provider === 'gemini' ? 'gemini' : undefined;
+    
     // Get intelligence analysis
-    const intelligence = await pdfIntelligence.getQuickIntelligence(filePath, forceRefresh);
+    const intelligence = await pdfIntelligence.getQuickIntelligence(filePath, forceRefresh, forcedProvider);
+
+    if (intelligence && intelligence.metadata) {
+      const currentProvider = intelligence.metadata.provider || (provider === 'codex' ? 'chatgpt' : provider);
+      intelligence.metadata.provider = currentProvider;
+      if (providerContext.preferred) {
+        intelligence.metadata.preferenceHonored = providerContext.preferred === provider;
+      }
+    }
 
     // Add lightweight observability header for dev/diagnostics
     try {
-      const provider = intelligence?.metadata?.provider || 'unknown';
+      const providerMeta = intelligence?.metadata?.provider || 'unknown';
       const mode = intelligence?.metadata?.mode || 'unknown';
-      res.setHeader('X-Intelligence-Path', `${provider}:${mode}`);
+      res.setHeader('X-Intelligence-Path', `${providerMeta}:${mode}`);
     } catch {}
 
     res.json(intelligence);
@@ -548,7 +623,11 @@ app.post('/api/extract-local', async (req: Request<{}, {}, ExtractLocalRequest>,
       }
     }
 
-    const provider = await selectProvider();
+    const providerContext = await resolveProviderOrRespond(req, res);
+    if (!providerContext) {
+      return;
+    }
+    const provider = providerContext.provider;
     console.log(`[route:/api/extract-local] Provider: ${provider}`);
 
     let data: any;
@@ -610,6 +689,8 @@ app.post('/api/fill-local', async (req: Request<{}, {}, FillLocalRequest>, res: 
       return res.status(404).json({ error: 'File not found' });
     }
     
+    let providerContext: Awaited<ReturnType<typeof resolveProviderOrRespond>> | null = null;
+    
     // If fillData is provided, use PDFService for direct filling
     if (fillData && typeof fillData === 'object') {
       try {
@@ -632,12 +713,23 @@ app.post('/api/fill-local', async (req: Request<{}, {}, FillLocalRequest>, res: 
         }
         return;
       } catch (pdfServiceError: any) {
-        console.warn('PDFService filling failed, falling back to Gemini:', pdfServiceError.message);
+        providerContext = await resolveProviderOrRespond(req, res);
+        if (!providerContext) {
+          return;
+        }
+        const providerLabel = providerDisplayName(providerContext.provider);
+        console.warn(`PDFService filling failed, falling back to ${providerLabel}:`, pdfServiceError.message);
       }
     }
     
-    // Fallback to original multi-provider approach
-    const provider = await selectProvider();
+    if (!providerContext) {
+      providerContext = await resolveProviderOrRespond(req, res);
+      if (!providerContext) {
+        return;
+      }
+    }
+    const provider = providerContext.provider;
+    const providerLabel = providerDisplayName(provider);
     const instructions = provider === 'claude' 
       ? await claudeGenerateFillInstructionsLocal(filePath, fillData || {})
       : provider === 'codex'
@@ -682,7 +774,7 @@ app.post('/api/fill-local', async (req: Request<{}, {}, FillLocalRequest>, res: 
       await fs.writeFile(outputPath, filledPdfBytes);
       res.json({ 
         success: true, 
-        message: 'PDF filled successfully with Gemini',
+        message: `PDF filled successfully with ${providerLabel}`,
         outputPath
       });
     } else {
@@ -715,7 +807,11 @@ app.post('/api/validate-local', async (req: Request<{}, {}, ValidateLocalRequest
       return res.status(404).json({ error: 'File not found' });
     }
     
-    const provider = await selectProvider();
+    const providerContext = await resolveProviderOrRespond(req, res);
+    if (!providerContext) {
+      return;
+    }
+    const provider = providerContext.provider;
     let validation;
     if (provider === 'claude') {
       validation = await claude.validatePDFForm(filePath, requiredFields);
@@ -1074,10 +1170,15 @@ app.post('/api/fill-with-profile-local', async (req: Request<{}, {}, FillWithPro
         res.send(Buffer.from(filledPdfBytes));
       }
     } catch (pdfServiceError: any) {
-      console.warn('PDFService filling failed, falling back to Gemini:', pdfServiceError.message);
+      const providerContext = await resolveProviderOrRespond(req, res);
+      if (!providerContext) {
+        return;
+      }
+      const provider = providerContext.provider;
+      const providerLabel = providerDisplayName(provider);
+      console.warn(`PDFService filling failed, falling back to ${providerLabel}:`, pdfServiceError.message);
       
       // Fallback to multi-provider approach
-      const provider = await selectProvider();
       const instructions = provider === 'claude'
         ? await claudeGenerateFillInstructionsLocal(filePath, fillData)
         : provider === 'codex' 
@@ -1117,7 +1218,7 @@ app.post('/api/fill-with-profile-local', async (req: Request<{}, {}, FillWithPro
         await fs.writeFile(outputPath, filledPdfBytes);
         res.json({ 
           success: true, 
-          message: `PDF filled successfully using profile '${profileName}' (Gemini fallback)`,
+          message: `PDF filled successfully using profile '${profileName}' (${providerLabel} fallback)`,
           outputPath,
           profileUsed: profileName,
           fieldsUsed: Object.keys(fillData).length
@@ -1359,7 +1460,11 @@ app.post('/api/fill', upload.single('pdf'), async (req: Request, res: Response) 
     const fillData = JSON.parse(req.body.data || '{}');
     
     // Get fill instructions from best provider
-    const provider = await selectProvider();
+    const providerContext = await resolveProviderOrRespond(req, res);
+    if (!providerContext) {
+      return;
+    }
+    const provider = providerContext.provider;
     const instructions = provider === 'claude'
       ? await claudeGenerateFillInstructionsLocal(req.file.path, fillData)
       : provider === 'codex'
@@ -1422,7 +1527,11 @@ app.post('/api/compare', upload.array('pdfs', 2), async (req: Request, res: Resp
     }
 
     // Extract data from both PDFs
-    const provider = await selectProvider();
+    const providerContext = await resolveProviderOrRespond(req, res);
+    if (!providerContext) {
+      return;
+    }
+    const provider = providerContext.provider;
     const [pdf1Data, pdf2Data] = await Promise.all([
       provider === 'claude' ? claudeExtractPDFLocal(files[0].path) :
       provider === 'codex' ? codexExtractPDFLocal(files[0].path) : 
@@ -1461,10 +1570,27 @@ app.post('/api/validate', upload.single('pdf'), async (req: Request, res: Respon
     const requiredFields = req.body.requiredFields ? 
       JSON.parse(req.body.requiredFields) : [];
     
-    const useCodex2 = await preferCodex();
-    const validation = useCodex2 && Array.isArray(requiredFields) && requiredFields.length>0
-      ? await pdfService.validateForm(req.file.path, requiredFields)
-      : await gemini.validatePDFForm(req.file.path, requiredFields);
+    const providerContext = await resolveProviderOrRespond(req, res);
+    if (!providerContext) {
+      await fs.unlink(req.file.path).catch(() => {});
+      return;
+    }
+    const provider = providerContext.provider;
+    let validation;
+    if (provider === 'claude') {
+      validation = await claude.validatePDFForm(req.file.path, requiredFields);
+    } else if (provider === 'codex' && Array.isArray(requiredFields) && requiredFields.length > 0) {
+      validation = await pdfService.validateForm(req.file.path, requiredFields);
+    } else if (provider === 'codex') {
+      const textData = await pdfService.extractFullText(req.file.path);
+      const limited = (textData.text || '').slice(0, 16000);
+      const prompt = `From this PDF text (truncated):\n\n${limited}\n\nReturn ONLY JSON {"isValid": boolean, "missingFields": [], "filledFields": [], "allFields": [], "summary": "..."}`;
+      const out = await codex.callCodex(prompt);
+      const match = out.match(/\{[\s\S]*\}/);
+      validation = match ? parseLLMJson(match[0]) : { isValid: false, missingFields: [], allFields: [], filledFields: [], summary: '' };
+    } else {
+      validation = await gemini.validatePDFForm(req.file.path, requiredFields);
+    }
     
     // Clean up
     await fs.unlink(req.file.path).catch(() => {});
@@ -1490,6 +1616,17 @@ app.post('/api/bulk', upload.fields([
     const csvPath = files.csv[0].path;
     const templatePath = files.template[0].path;
     
+    const providerContext = await resolveProviderOrRespond(req, res);
+    if (!providerContext) {
+      await Promise.all([
+        fs.unlink(csvPath).catch(() => {}),
+        fs.unlink(templatePath).catch(() => {})
+      ]);
+      return;
+    }
+    const provider = providerContext.provider;
+    const providerLabel = providerDisplayName(provider);
+    
     // Read CSV (simple implementation - could use csv-parse for production)
     const csvContent = await fs.readFile(csvPath, 'utf-8');
     const lines = csvContent.split('\n');
@@ -1508,7 +1645,6 @@ app.post('/api/bulk', upload.fields([
       
       try {
         // Get fill instructions for this row
-        const provider = await selectProvider();
         const instructions = provider === 'claude'
           ? await claudeGenerateFillInstructionsLocal(templatePath, rowData)
           : provider === 'codex'

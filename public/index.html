@@ -47,6 +47,10 @@
                             <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
                             <span>Switch Account</span>
                         </button>
+                        <button id="googleSignInMenu" class="account-menu-item" onclick="handleGoogleSignIn()">
+                            <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
+                            <span>Sign in with Gemini</span>
+                        </button>
                         <button id="chatgptSignInMenu" class="account-menu-item" onclick="handleChatGPTSignIn()">
                             <i data-lucide="message-circle" style="width: 16px; height: 16px;"></i>
                             <span>Sign in with ChatGPT</span>
@@ -55,6 +59,24 @@
                             <i data-lucide="brain" style="width: 16px; height: 16px;"></i>
                             <span>Sign in with Claude</span>
                         </button>
+                        <div class="account-menu-section" id="providerMenuSection">
+                            <div class="account-menu-label">Preferred AI Provider</div>
+                            <div class="provider-selector" id="providerSelector">
+                                <button type="button" class="provider-option" id="providerOptionClaude" data-provider-option="claude">
+                                    <span class="provider-option-label">Claude AI</span>
+                                    <span class="provider-option-status" id="providerStatusClaude">Not connected</span>
+                                </button>
+                                <button type="button" class="provider-option" id="providerOptionCodex" data-provider-option="codex">
+                                    <span class="provider-option-label">ChatGPT</span>
+                                    <span class="provider-option-status" id="providerStatusCodex">Not connected</span>
+                                </button>
+                                <button type="button" class="provider-option" id="providerOptionGemini" data-provider-option="gemini">
+                                    <span class="provider-option-label">Google Gemini</span>
+                                    <span class="provider-option-status" id="providerStatusGemini">Not connected</span>
+                                </button>
+                            </div>
+                            <div class="provider-hint">All actions will use the selected model.</div>
+                        </div>
                         <div class="account-menu-separator"></div>
                         <button id="logoutMenu" class="account-menu-item" onclick="handleLogout()" style="display: none;">
                             <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
@@ -319,6 +341,11 @@
                         <i id="copyIcon" data-lucide="clipboard" style="width: 16px; height: 16px;"></i>
                         <span id="copyText">Copy JSON</span>
                     </button>
+                </div>
+                <div class="result-meta" id="resultMeta">
+                    <span id="resultMetaProvider"></span>
+                    <span id="resultMetaPreference"></span>
+                    <span id="resultMetaDuration"></span>
                 </div>
                 <div class="result-content" id="resultContent" onclick="copyToClipboard()">
                     <span class="copy-tooltip">Click to copy</span>

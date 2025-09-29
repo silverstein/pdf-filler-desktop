@@ -161,6 +161,91 @@
         margin: 8px 0;
     }
 
+    .account-menu-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+    }
+
+    .account-menu-section + .account-menu-section {
+        border-top: 1px solid var(--border);
+    }
+
+    .account-menu-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-secondary);
+    }
+
+    .provider-selector {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .provider-option {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: var(--surface-secondary);
+        color: inherit;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .provider-option:hover {
+        border-color: var(--border);
+        background: var(--surface-hover);
+    }
+
+    .provider-option.selected {
+        border-color: var(--primary);
+        background: var(--surface);
+        box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    .provider-option.disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        border-color: var(--border);
+        background: var(--surface);
+    }
+
+    .provider-option.disabled:hover {
+        background: var(--surface);
+        border-color: var(--border);
+    }
+
+    .provider-option:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+    }
+
+    .provider-option-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .provider-option-status {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+    }
+
+    .provider-hint {
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        line-height: 1.4;
+    }
+
     .status-dot {
         width: 6px;
         height: 6px;
@@ -749,6 +834,21 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 1rem;
+    }
+
+    .result-meta {
+        display: none;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin: -0.25rem 0 0.75rem;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .result-meta.show {
+        display: flex;
     }
 
     .copy-btn {

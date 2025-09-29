@@ -6,8 +6,254 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTheme = localStorage.getItem('selectedTheme') || 'mono';
     let currentFormFields = null;
     // Track which provider is active for UI labeling
-    let activeProvider = 'unknown'; // 'gemini' | 'chatgpt' | 'unknown'
+    let activeProvider = 'unknown'; // 'gemini' | 'claude' | 'codex' | 'unknown'
     let currentModalFile = null;
+    let currentUserEmail = null;
+    let lastResultMeta = null;
+
+    const providerConfig = {
+        claude: {
+            key: 'claude',
+            display: 'Claude AI',
+            badgeText: '🧠 Claude Pro',
+            badgeStyle: 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;',
+            statusText: () => 'Claude Connected',
+            accountHtml: () => '<i data-lucide="brain" style="width: 16px; height: 16px;"></i><span>Powered by Claude</span>',
+            processingText: 'Processing with Claude...'
+        },
+        codex: {
+            key: 'codex',
+            display: 'ChatGPT',
+            badgeText: '💬 ChatGPT',
+            badgeStyle: 'background: linear-gradient(135deg, #10a37f 0%, #0d8f6f 100%); color: white;',
+            statusText: () => 'ChatGPT Connected',
+            accountHtml: () => '<i data-lucide="message-square" style="width: 16px; height: 16px;"></i><span>Powered by ChatGPT</span>',
+            processingText: 'Processing with ChatGPT...'
+        },
+        gemini: {
+            key: 'gemini',
+            display: 'Google Gemini',
+            badgeText: '✨ Gemini Free',
+            badgeStyle: 'background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%); color: white;',
+            statusText: (email) => email || 'Gemini Connected',
+            accountHtml: () => '<i data-lucide="sparkles" style="width: 16px; height: 16px;"></i><span>Powered by Gemini</span>',
+            processingText: 'Processing with Gemini AI...'
+        }
+    };
+
+    const providerPriority = ['claude', 'gemini', 'codex'];
+
+    let availableProviders = {
+        claude: false,
+        codex: false,
+        gemini: false
+    };
+
+    let preferredProvider = null;
+    const providerOptionButtons = {};
+
+    function normalizeProviderKey(value) {
+        if (typeof value !== 'string') return null;
+        const normalized = value.trim().toLowerCase();
+        if (!normalized) return null;
+        if (normalized === 'claude') return 'claude';
+        if (normalized === 'gemini' || normalized === 'google' || normalized === 'gemini_ai') return 'gemini';
+        if (normalized === 'codex' || normalized === 'chatgpt' || normalized === 'gpt-5') return 'codex';
+        return null;
+    }
+
+    function providerDisplayName(providerKey) {
+        const normalized = normalizeProviderKey(providerKey);
+        if (normalized && providerConfig[normalized]) {
+            return providerConfig[normalized].display;
+        }
+        return 'AI';
+    }
+
+    function determineFallbackProvider() {
+        for (const key of providerPriority) {
+            if (availableProviders[key]) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    function updateAvailableProviders(nextAvailability) {
+        availableProviders = {
+            claude: !!nextAvailability.claude,
+            codex: !!nextAvailability.codex,
+            gemini: !!nextAvailability.gemini
+        };
+    }
+
+    function updateProcessingLabel() {
+        const label = document.getElementById('processingText');
+        if (!label) return;
+        const normalized = normalizeProviderKey(activeProvider);
+        const config = normalized ? providerConfig[normalized] : null;
+        const text = config ? (typeof config.processingText === 'function' ? config.processingText() : config.processingText) : 'Processing with AI...';
+        label.textContent = text;
+    }
+
+    function updateProviderBadgeUI(emailOverride = currentUserEmail) {
+        const statusDot = document.getElementById('geminiStatus');
+        if (statusDot) {
+            statusDot.style.background = activeProvider === 'unknown' ? 'var(--warning, #f59f00)' : 'var(--success)';
+        }
+
+        const statusTextEl = document.getElementById('geminiStatusText');
+        const accountEmailEl = document.getElementById('accountEmail');
+        const providerBadge = document.getElementById('providerBadge');
+        const providerBadgeTextEl = document.getElementById('providerBadgeText');
+        const normalized = normalizeProviderKey(activeProvider);
+        const config = normalized ? providerConfig[normalized] : null;
+
+        if (config) {
+            if (statusTextEl) {
+                const statusValue = typeof config.statusText === 'function' ? config.statusText(emailOverride) : config.statusText;
+                statusTextEl.textContent = statusValue;
+            }
+            if (accountEmailEl) {
+                const html = typeof config.accountHtml === 'function' ? config.accountHtml(emailOverride) : config.accountHtml;
+                accountEmailEl.innerHTML = html;
+            }
+            if (providerBadge && providerBadgeTextEl) {
+                providerBadgeTextEl.textContent = config.badgeText;
+                providerBadge.style = `${config.badgeStyle} font-weight: 600; padding: 4px 12px; border-radius: 12px;`;
+            }
+        } else {
+            if (statusTextEl) statusTextEl.textContent = 'Connected';
+            if (accountEmailEl) {
+                accountEmailEl.innerHTML = '<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>Connected</span>';
+            }
+            if (providerBadge && providerBadgeTextEl) {
+                providerBadgeTextEl.textContent = 'No AI Connected';
+                providerBadge.style = 'background: var(--surface-secondary); color: var(--text-secondary); font-weight: 600; padding: 4px 12px; border-radius: 12px;';
+            }
+        }
+
+        setTimeout(() => lucide.createIcons(), 0);
+    }
+
+    function updateProviderSelectorUI() {
+        Object.entries(providerOptionButtons).forEach(([key, button]) => {
+            if (!button) return;
+            const normalized = normalizeProviderKey(key);
+            const available = !!availableProviders[normalized];
+            const statusSpan = button.querySelector('.provider-option-status');
+
+            if (available) {
+                button.classList.remove('disabled');
+                button.disabled = false;
+                if (statusSpan) statusSpan.textContent = 'Connected';
+                button.setAttribute('title', `Use ${providerDisplayName(normalized)} for this session`);
+            } else {
+                button.classList.add('disabled');
+                button.disabled = true;
+                if (statusSpan) statusSpan.textContent = 'Sign in required';
+                button.setAttribute('title', `${providerDisplayName(normalized)} is not signed in`);
+            }
+
+            button.classList.toggle('selected', normalizeProviderKey(activeProvider) === normalized);
+        });
+    }
+
+    function setActiveProvider(providerKey, options = {}) {
+        const { persist = false, userInitiated = false, allowFallback = true } = options;
+        const normalized = normalizeProviderKey(providerKey);
+        let chosen = normalized;
+
+        if (normalized && !availableProviders[normalized]) {
+            if (userInitiated) {
+                showError(`${providerDisplayName(normalized)} is not available. Please sign in to use it.`);
+            }
+            if (!allowFallback) {
+                return false;
+            }
+            chosen = determineFallbackProvider();
+        }
+
+        if (!chosen) {
+            activeProvider = 'unknown';
+            if (persist) {
+                preferredProvider = null;
+                localStorage.removeItem('preferredProvider');
+            }
+            updateProviderBadgeUI();
+            updateProviderSelectorUI();
+            updateProcessingLabel();
+            return true;
+        }
+
+        activeProvider = chosen;
+        if (persist) {
+            preferredProvider = chosen;
+            localStorage.setItem('preferredProvider', chosen);
+        }
+
+        updateProviderBadgeUI();
+        updateProviderSelectorUI();
+        updateProcessingLabel();
+        return true;
+    }
+
+    function getProviderForRequest() {
+        return normalizeProviderKey(activeProvider);
+    }
+
+    function updateResultMeta(meta) {
+        lastResultMeta = meta || null;
+        const container = document.getElementById('resultMeta');
+        const providerEl = document.getElementById('resultMetaProvider');
+        const preferenceEl = document.getElementById('resultMetaPreference');
+        const durationEl = document.getElementById('resultMetaDuration');
+
+        if (!container || !providerEl || !preferenceEl || !durationEl) {
+            return;
+        }
+
+        if (!meta || !meta.provider) {
+            container.classList.remove('show');
+            container.style.display = 'none';
+            providerEl.textContent = '';
+            preferenceEl.textContent = '';
+            preferenceEl.style.display = 'none';
+            durationEl.textContent = '';
+            durationEl.style.display = 'none';
+            return;
+        }
+
+        providerEl.textContent = `Model: ${providerDisplayName(meta.provider)}`;
+
+        if (meta.preferenceHonored === false) {
+            preferenceEl.textContent = 'Fallback';
+            preferenceEl.style.display = 'inline';
+        } else {
+            preferenceEl.textContent = '';
+            preferenceEl.style.display = 'none';
+        }
+
+        if (typeof meta.durationSeconds === 'number') {
+            durationEl.textContent = `Duration: ${meta.durationSeconds.toFixed(1)}s`;
+            durationEl.style.display = 'inline';
+        } else {
+            durationEl.textContent = '';
+            durationEl.style.display = 'none';
+        }
+
+        container.classList.add('show');
+        container.style.display = 'flex';
+    }
+
+    function hideAccountMenu() {
+        const menu = document.getElementById('accountMenu');
+        if (menu) {
+            menu.classList.remove('show');
+        }
+    }
+
+    preferredProvider = normalizeProviderKey(localStorage.getItem('preferredProvider'));
 
     // Toggle between main app and settings
     function toggleSettings() {
@@ -281,82 +527,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 document.getElementById('authSection').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
-                document.getElementById('geminiStatus').style.background = 'var(--success)';
-                // Determine active provider: Priority is Claude > Gemini > Codex
-                if (authAny && authAny.providers) {
-                    if (authAny.providers.claude) {
-                        activeProvider = 'claude';
-                    } else if (authAny.providers.gemini) {
-                        activeProvider = 'gemini';
-                    } else if (authAny.providers.codex) {
-                        activeProvider = 'chatgpt';
-                    } else {
-                        activeProvider = 'unknown';
-                    }
+
+                const nextAvailability = {
+                    claude: !!(authAny && authAny.providers && authAny.providers.claude),
+                    codex: !!(authAny && authAny.providers && authAny.providers.codex),
+                    gemini: !!(authAny && authAny.providers && authAny.providers.gemini)
+                };
+
+                updateAvailableProviders(nextAvailability);
+
+                if (preferredProvider && !availableProviders[preferredProvider]) {
+                    preferredProvider = null;
+                    localStorage.removeItem('preferredProvider');
                 }
-                
+
+                const fallbackProvider = determineFallbackProvider();
+                const providerToActivate = preferredProvider || fallbackProvider;
+                setActiveProvider(providerToActivate, { persist: false, allowFallback: true });
+
                 // Toggle sign-in menu items based on auth status
                 try {
+                    const googleMenuBtn = document.getElementById('googleSignInMenu');
                     const chatgptMenuBtn = document.getElementById('chatgptSignInMenu');
                     const claudeMenuBtn = document.getElementById('claudeSignInMenu');
                     const logoutMenuBtn = document.getElementById('logoutMenu');
+                    if (googleMenuBtn) {
+                        googleMenuBtn.style.display = availableProviders.gemini ? 'none' : 'flex';
+                    }
                     if (chatgptMenuBtn) {
-                        chatgptMenuBtn.style.display = authAny && authAny.providers && authAny.providers.codex ? 'none' : 'flex';
+                        chatgptMenuBtn.style.display = availableProviders.codex ? 'none' : 'flex';
                     }
                     if (claudeMenuBtn) {
-                        claudeMenuBtn.style.display = authAny && authAny.providers && authAny.providers.claude ? 'none' : 'flex';
+                        claudeMenuBtn.style.display = availableProviders.claude ? 'none' : 'flex';
                     }
-                    // Show logout button when any provider is authenticated
                     if (logoutMenuBtn) {
                         logoutMenuBtn.style.display = isAuthenticated ? 'flex' : 'none';
                     }
                 } catch {}
-                
-                // Show which provider is connected with clear labeling
-                let providerDisplay = '';
-                let providerIcon = '';
-                let providerBadgeText = '';
-                let providerBadgeStyle = '';
-                
-                if (activeProvider === 'claude') {
-                    providerDisplay = 'Claude AI';
-                    providerIcon = '<i data-lucide="brain" style="width: 16px; height: 16px;"></i>';
-                    providerBadgeText = '🧠 Claude Pro';
-                    providerBadgeStyle = 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;';
-                    document.getElementById('geminiStatusText').textContent = 'Claude Connected';
-                    document.getElementById('accountEmail').innerHTML = `${providerIcon}<span>Powered by Claude</span>`;
-                } else if (activeProvider === 'chatgpt') {
-                    providerDisplay = 'ChatGPT';
-                    providerIcon = '<i data-lucide="message-square" style="width: 16px; height: 16px;"></i>';
-                    providerBadgeText = '💬 ChatGPT';
-                    providerBadgeStyle = 'background: linear-gradient(135deg, #10a37f 0%, #0d8f6f 100%); color: white;';
-                    document.getElementById('geminiStatusText').textContent = 'ChatGPT Connected';
-                    document.getElementById('accountEmail').innerHTML = `${providerIcon}<span>Powered by ChatGPT</span>`;
-                } else if (activeProvider === 'gemini') {
-                    providerDisplay = 'Google Gemini';
-                    providerIcon = '<i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>';
-                    providerBadgeText = '✨ Gemini Free';
-                    providerBadgeStyle = 'background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%); color: white;';
-                    document.getElementById('geminiStatusText').textContent = userEmail || 'Gemini Connected';
-                    document.getElementById('accountEmail').innerHTML = `${providerIcon}<span>Powered by Gemini</span>`;
-                } else {
-                    providerBadgeText = 'No AI Connected';
-                    providerBadgeStyle = 'background: var(--secondary); color: var(--text-secondary);';
-                    document.getElementById('geminiStatusText').textContent = 'Connected';
-                    document.getElementById('accountEmail').innerHTML = `<i data-lucide="mail" style="width: 16px; height: 16px;"></i><span>Connected</span>`;
-                }
-                
-                // Update the provider badge
-                const providerBadge = document.getElementById('providerBadge');
-                const providerBadgeTextEl = document.getElementById('providerBadgeText');
-                if (providerBadge && providerBadgeTextEl) {
-                    providerBadgeTextEl.textContent = providerBadgeText;
-                    providerBadge.style = providerBadgeStyle + ' font-weight: 600; padding: 4px 12px; border-radius: 12px;';
-                }
-                lucide.createIcons();
+
+                currentUserEmail = userEmail;
+                updateProviderBadgeUI(userEmail);
+                updateProviderSelectorUI();
+                updateProcessingLabel();
             } else {
                 document.getElementById('authSection').style.display = 'block';
                 document.getElementById('mainApp').style.display = 'none';
+                updateAvailableProviders({ claude: false, codex: false, gemini: false });
+                preferredProvider = null;
+                currentUserEmail = null;
+                localStorage.removeItem('preferredProvider');
+                setActiveProvider(null, { persist: false, allowFallback: true });
+                updateProviderSelectorUI();
+                updateProviderBadgeUI();
+                updateProcessingLabel();
             }
         } else {
             checkGeminiStatus();
@@ -367,63 +590,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const accountTrigger = document.getElementById('accountTrigger');
     const accountMenu = document.getElementById('accountMenu');
 
+    providerOptionButtons.claude = document.getElementById('providerOptionClaude');
+    providerOptionButtons.codex = document.getElementById('providerOptionCodex');
+    providerOptionButtons.gemini = document.getElementById('providerOptionGemini');
+
+    Object.entries(providerOptionButtons).forEach(([key, button]) => {
+        if (!button) return;
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (button.classList.contains('disabled') || button.disabled) {
+                return;
+            }
+            const changed = setActiveProvider(key, { persist: true, userInitiated: true, allowFallback: false });
+            if (changed) {
+                hideAccountMenu();
+            }
+        });
+    });
+
+    updateProviderSelectorUI();
+    updateProviderBadgeUI();
+    updateProcessingLabel();
+
     if (accountTrigger) {
         accountTrigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            accountMenu.classList.toggle('show');
+            if (accountMenu) {
+                accountMenu.classList.toggle('show');
+            }
         });
     }
 
     document.addEventListener('click', () => {
-        if (accountMenu) {
-            accountMenu.classList.remove('show');
-        }
+        hideAccountMenu();
     });
-
-    // Sign out function
-    async function signOut() {
-        const confirmed = confirm('Are you sure you want to sign out? You will need to re-authenticate to use the app again.');
-        if (!confirmed) return;
-
-        try {
-            // Call server logout endpoint to clear all provider authentications
-            const response = await fetch('/api/logout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            const result = await response.json();
-            console.log('Logout result:', result);
-
-            // Also clear local Gemini auth if in Electron
-            if (window.electronAPI) {
-                await window.electronAPI.clearAuth();
-            }
-
-            // Show success message
-            if (result.success) {
-                const providers = [];
-                if (result.providers?.claude?.success) providers.push('Claude');
-                if (result.providers?.gemini?.success) providers.push('Gemini');
-                if (result.providers?.codex?.success) providers.push('ChatGPT');
-
-                if (providers.length > 0) {
-                    alert(`Successfully signed out from: ${providers.join(', ')}`);
-                }
-            }
-
-            // Reload the page to show auth screen
-            window.location.reload();
-        } catch (error) {
-            console.error('Logout error:', error);
-            alert('Error during logout. Please try again.');
-        }
-    }
-
-    // Handle logout from menu
-    async function handleLogout() {
-        await signOut();
-    }
 
     // Switch account function
     async function switchAccount() {
@@ -588,7 +789,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Show loading state
-            const accountBtn = document.getElementById('accountBtn');
             const accountEmail = document.getElementById('accountEmail');
             const accountIcon = document.getElementById('accountIcon');
             const providerBadgeText = document.getElementById('providerBadgeText');
@@ -605,44 +805,56 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
 
             if (result.success) {
-                // Reset UI to signed-out state
-                isAuthenticated = false;
-                userEmail = null;
-                activeProvider = 'unknown';
+                const providers = [];
+                if (result.providers?.claude?.success) providers.push('Claude');
+                if (result.providers?.gemini?.success) providers.push('Gemini');
+                if (result.providers?.codex?.success) providers.push('ChatGPT');
 
-                // Hide main app, show auth section
-                document.getElementById('mainApp').style.display = 'none';
-                document.getElementById('authSection').style.display = 'block';
-
-                // Update account button
-                if (accountEmail) accountEmail.textContent = 'Sign In';
-                if (accountIcon) accountIcon.innerHTML = '<i data-lucide="user" style="width: 18px; height: 18px;"></i>';
-
-                // Hide logout button, show sign-in options
-                const logoutBtn = document.getElementById('logoutMenu');
-                const chatgptBtn = document.getElementById('chatgptSignInMenu');
-                const claudeBtn = document.getElementById('claudeSignInMenu');
-
-                if (logoutBtn) logoutBtn.style.display = 'none';
-                if (chatgptBtn) chatgptBtn.style.display = 'flex';
-                if (claudeBtn) claudeBtn.style.display = 'flex';
-
-                // Update provider badge
-                if (providerBadgeText) {
-                    providerBadgeText.textContent = 'Not Signed In';
-                    const providerBadge = document.getElementById('providerBadge');
-                    if (providerBadge) providerBadge.style.background = 'var(--surface-secondary)';
+                if (window.electronAPI && typeof window.electronAPI.clearAuth === 'function') {
+                    try {
+                        await window.electronAPI.clearAuth();
+                    } catch (clearError) {
+                        console.warn('Failed to clear local auth cache:', clearError);
+                    }
                 }
 
-                // Clear any stored files or results
+                updateAvailableProviders({ claude: false, codex: false, gemini: false });
+                preferredProvider = null;
+                currentUserEmail = null;
+                localStorage.removeItem('preferredProvider');
+                setActiveProvider(null, { persist: false, allowFallback: true });
+                updateProviderSelectorUI();
+                updateProviderBadgeUI();
+                updateProcessingLabel();
+                updateResultMeta(null);
+                isAuthenticated = false;
                 selectedFile = null;
                 currentResult = null;
                 currentFormFields = null;
 
-                // Refresh Lucide icons
+                document.getElementById('mainApp').style.display = 'none';
+                document.getElementById('authSection').style.display = 'block';
+
+                if (accountEmail) accountEmail.textContent = 'Sign In';
+                if (accountIcon) accountIcon.innerHTML = '<i data-lucide="user" style="width: 18px; height: 18px;"></i>';
+
+                const logoutBtn = document.getElementById('logoutMenu');
+                const googleBtn = document.getElementById('googleSignInMenu');
+                const chatgptBtn = document.getElementById('chatgptSignInMenu');
+                const claudeBtn = document.getElementById('claudeSignInMenu');
+
+                if (logoutBtn) logoutBtn.style.display = 'none';
+                if (googleBtn) googleBtn.style.display = 'flex';
+                if (chatgptBtn) chatgptBtn.style.display = 'flex';
+                if (claudeBtn) claudeBtn.style.display = 'flex';
+
+                hideAccountMenu();
                 setTimeout(() => lucide.createIcons(), 10);
 
-                showSuccess('Successfully signed out from all providers');
+                const successMessage = providers.length > 0
+                    ? `Signed out from: ${providers.join(', ')}`
+                    : 'Signed out from all providers';
+                showSuccess(successMessage);
             } else {
                 showError('Failed to sign out: ' + (result.message || 'Unknown error'));
             }
@@ -859,17 +1071,53 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         
         try {
+            const payload = { filePath, forceRefresh };
+            const providerForRequest = getProviderForRequest();
+            if (providerForRequest) {
+                payload.provider = providerForRequest;
+            }
+
+            if (providerForRequest === 'claude') {
+                content.innerHTML = `
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; align-items: center; text-align: center; padding: 1.5rem 1rem; color: var(--text-secondary);">
+                        <i data-lucide="brain" style="width: 28px; height: 28px; opacity: 0.6;"></i>
+                        <div>
+                            <p style="margin: 0; font-weight: 600; color: var(--text);">Claude intelligence coming soon</p>
+                            <small>Switch to ChatGPT or Gemini to generate quick document insights for now.</small>
+                        </div>
+                    </div>
+                `;
+                setTimeout(() => lucide.createIcons(), 0);
+                return;
+            }
+
             const response = await fetch('/api/intelligence-local', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filePath, forceRefresh })
+                body: JSON.stringify(payload)
             });
             
             if (response.ok) {
                 const data = await response.json();
+                const providerHeader = normalizeProviderKey(response.headers.get('X-AI-Provider')) || providerForRequest;
+                const preferenceHonored = response.headers.get('X-AI-Provider-Preference-Honored');
+                data.metadata = data.metadata || {};
+                if (providerHeader) {
+                    data.metadata.provider = providerHeader;
+                }
+                if (typeof preferenceHonored === 'string') {
+                    data.metadata.preferenceHonored = preferenceHonored !== '0';
+                }
                 displayIntelligence(data);
             } else {
-                throw new Error('Failed to fetch intelligence');
+                let errorMessage = 'Failed to fetch intelligence';
+                try {
+                    const errorBody = await response.json();
+                    if (errorBody && errorBody.error) {
+                        errorMessage = errorBody.error;
+                    }
+                } catch {}
+                throw new Error(errorMessage);
             }
         } catch (error) {
             console.error('Intelligence error:', error);
@@ -885,8 +1133,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function displayIntelligence(data) {
         const content = document.getElementById('intelligenceContent');
         const { summary, insights, metadata } = data;
-        const providerLabel = metadata && metadata.provider ? (metadata.provider === 'chatgpt' ? 'ChatGPT' : 'Gemini') : 'AI';
+        const normalizedProvider = normalizeProviderKey(metadata && metadata.provider);
+        const providerLabel = providerDisplayName(normalizedProvider);
         const modeLabel = metadata && metadata.mode ? ` · ${metadata.mode}` : '';
+        const preferenceLabel = metadata && metadata.preferenceHonored === false ? ' · fallback' : '';
         // If intelligence ran extract-first, mark Extract card as cached
         if (metadata && metadata.mode === 'extract-first') {
             setExtractCardCached(true);
@@ -953,7 +1203,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-secondary);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span>Analysis confidence: ${metadata.confidence}%</span>
-                    <span style="opacity:0.8;">${providerLabel}${modeLabel}</span>
+                <span style="opacity:0.8;">${providerLabel}${modeLabel}${preferenceLabel}</span>
                     <span>Processing time: ${(metadata.processingTime / 1000).toFixed(1)}s</span>
                 </div>
             </div>
@@ -1055,17 +1305,25 @@ document.addEventListener('DOMContentLoaded', () => {
         // Check if we're using native file paths or web uploads
         let endpoint, body, headers;
         let formData = null; // Declare formData outside the if block
+        const providerForRequest = getProviderForRequest();
         
         if (window.electronAPI && selectedFileIsPath) {
             // Native file path mode
             endpoint = `/api/${action}-local`;
             headers = { 'Content-Type': 'application/json' };
-            body = JSON.stringify({ filePath: selectedFile });
+            const payload = { filePath: selectedFile };
+            if (providerForRequest) {
+                payload.provider = providerForRequest;
+            }
+            body = JSON.stringify(payload);
         } else {
             // Web upload mode
             endpoint = `/api/${action}`;
             formData = new FormData();
             formData.append('pdf', selectedFile);
+            if (providerForRequest) {
+                formData.append('provider', providerForRequest);
+            }
             body = formData;
             headers = {}; // FormData sets its own headers
         }
@@ -1089,6 +1347,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Response error:', response.status, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
+
+            const resolvedProvider = normalizeProviderKey(response.headers.get('X-AI-Provider')) || providerForRequest;
+            const preferenceHonored = response.headers.get('X-AI-Provider-Preference-Honored');
+            const resultMeta = {
+                provider: resolvedProvider,
+                preferenceHonored: preferenceHonored ? preferenceHonored !== '0' : true,
+                durationSeconds: processingStartTime ? (Date.now() - processingStartTime) / 1000 : null
+            };
             
             if (action === 'fill') {
                 if (window.electronAPI && selectedFileIsPath) {
@@ -1122,6 +1388,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 const data = await response.json();
+                updateResultMeta(resultMeta);
                 showResults(data);
                 // Mark extract card as cached if server indicates cache hit
                 if (action === 'extract') {
@@ -1133,6 +1400,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch (error) {
+            updateResultMeta(null);
             showError(error.message);
         } finally {
             hideProcessing();
@@ -1140,19 +1408,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let processingTimer;
-    let processingStartTime;
+    let processingStartTime = null;
     
     function showProcessing() {
         document.getElementById('processing').style.display = 'block';
-        // Update provider label dynamically
-        const label = document.getElementById('processingText');
-        if (activeProvider === 'chatgpt') {
-            label.textContent = 'Processing with ChatGPT...';
-        } else if (activeProvider === 'gemini') {
-            label.textContent = 'Processing with Gemini AI...';
-        } else {
-            label.textContent = 'Processing with AI...';
-        }
+        updateProcessingLabel();
         processingStartTime = Date.now();
         
         processingTimer = setInterval(() => {
@@ -1168,6 +1428,7 @@ document.addEventListener('DOMContentLoaded', () => {
             processingTimer = null;
         }
         document.getElementById('processingTimer').textContent = '';
+        processingStartTime = null;
     }
 
     function showResults(data) {
@@ -1257,6 +1518,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const resultsEl = document.getElementById('results');
         resultsEl.style.display = 'none';
         resultsEl.classList.remove('visible');
+        updateResultMeta(null);
     }
 
     function showError(message) {
@@ -1267,6 +1529,22 @@ document.addEventListener('DOMContentLoaded', () => {
         errorEl.style.color = 'white';
         errorEl.style.padding = '1rem';
         errorEl.style.borderRadius = '8px';
+    }
+
+    function showSuccess(message) {
+        const errorEl = document.getElementById('errorMessage');
+        if (!errorEl) return;
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+        errorEl.style.background = 'var(--success)';
+        errorEl.style.color = 'white';
+        errorEl.style.padding = '1rem';
+        errorEl.style.borderRadius = '8px';
+        setTimeout(() => {
+            if (errorEl.textContent === message) {
+                errorEl.style.display = 'none';
+            }
+        }, 4000);
     }
 
     function hideError() {
@@ -1922,12 +2200,14 @@ document.addEventListener('DOMContentLoaded', () => {
             // Get password if provided
             const password = document.getElementById('bulkPdfPassword').value || null;
 
+            const providerForRequest = getProviderForRequest();
             const requestBody = {
                 templatePath: bulkTemplatePath,
                 csvPath: bulkCsvPath,
                 outputPath: bulkOutputPath,
                 namingPattern: namingPattern,
-                password: password
+                password: password,
+                provider: providerForRequest || undefined
             };
 
             const response = await fetch('/api/bulk-fill-local', {

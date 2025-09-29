@@ -37,8 +37,9 @@ export interface IntelligenceResult {
     analyzedAt: string;
     processingTime: number;
     confidence: number;
-    provider?: 'gemini' | 'chatgpt';
+    provider?: 'gemini' | 'chatgpt' | 'claude';
     mode?: 'codex-structured' | 'codex-short' | 'heuristic' | 'gemini' | 'extract-first';
+    preferenceHonored?: boolean;
   };
 }
 
@@ -62,14 +63,15 @@ export class PDFIntelligenceService {
   /**
    * Get quick intelligence about a PDF - the main entry point
    */
-  async getQuickIntelligence(pdfPath: string, forceRefresh: boolean = false): Promise<IntelligenceResult> {
+  async getQuickIntelligence(pdfPath: string, forceRefresh: boolean = false, forcedProvider?: 'gemini' | 'codex'): Promise<IntelligenceResult> {
     const startTime = Date.now();
     // Unified overall budget: default 120s (configurable via INTEL_BUDGET_MS)
     const budgetMs = Number(process.env.INTEL_BUDGET_MS || 120000);
     const absolutePath = path.resolve(pdfPath);
+    const skipCache = !!forcedProvider;
     
     // Check persistent cache first (unless force refresh)
-    if (!forceRefresh) {
+    if (!forceRefresh && !skipCache) {
       const cached = getIntelligence(absolutePath);
       if (cached) {
         console.log('[Intelligence] Using persistent cache for', absolutePath);
@@ -78,28 +80,33 @@ export class PDFIntelligenceService {
       
       // Check if analysis is already in-flight
       const inFlight = getIntelInFlight(absolutePath);
-      if (inFlight) {
+      if (inFlight && !skipCache) {
         console.log('[Intelligence] Attaching to in-flight analysis for', absolutePath);
         return inFlight;
       }
     }
 
     // Create and register the analysis promise
-    const analysisPromise = this.performIntelligenceAnalysis(absolutePath, budgetMs, startTime);
-    setIntelInFlight(absolutePath, analysisPromise);
+    const analysisPromise = this.performIntelligenceAnalysis(absolutePath, budgetMs, startTime, forcedProvider);
+    if (!skipCache) {
+      setIntelInFlight(absolutePath, analysisPromise);
+    }
     
     try {
       const result = await analysisPromise;
       return result;
     } finally {
-      clearIntelInFlight(absolutePath);
+      if (!skipCache) {
+        clearIntelInFlight(absolutePath);
+      }
     }
   }
 
   private async performIntelligenceAnalysis(
     absolutePath: string,
     budgetMs: number,
-    startTime: number
+    startTime: number,
+    forcedProvider?: 'gemini' | 'codex'
   ): Promise<IntelligenceResult> {
     const remaining = () => budgetMs - (Date.now() - startTime);
     const log = (...args: any[]) => {
@@ -117,7 +124,28 @@ export class PDFIntelligenceService {
         this.gemini.checkAuthStatus()
       ]);
 
-      if (codexOk && !geminiOk) {
+      let useCodexPath: boolean;
+      if (forcedProvider === 'codex') {
+        if (!codexOk) {
+          throw new Error('Preferred provider codex not available');
+        }
+        useCodexPath = true;
+      } else if (forcedProvider === 'gemini') {
+        if (!geminiOk) {
+          throw new Error('Preferred provider gemini not available');
+        }
+        useCodexPath = false;
+      } else {
+        useCodexPath = codexOk && !geminiOk;
+        if (!useCodexPath && !geminiOk && codexOk) {
+          useCodexPath = true;
+        }
+        if (!useCodexPath && !geminiOk && !codexOk) {
+          throw new Error('No AI providers available for intelligence analysis');
+        }
+      }
+
+      if (useCodexPath) {
         const quickOnly = process.env.INTEL_QUICK_ONLY === '1' || budgetMs <= 45000;
         log('Using Codex (ChatGPT) extract-first', quickOnly ? '(quick-only)' : '');
 
@@ -154,15 +182,23 @@ export class PDFIntelligenceService {
                   mode: 'codex-short'
                 }
               };
-              setIntelligence(absolutePath, combined);
+              if (!forcedProvider) {
+                if (!forcedProvider) {
+            setIntelligence(absolutePath, combined);
+          }
+              }
               return combined;
             }
           } catch {}
-          const quick = this.quickHeuristicIntelligence(absolutePath, textData.text || '', fields, Date.now() - startTime);
-          quick.metadata.provider = 'chatgpt';
-          quick.metadata.mode = 'heuristic';
-          setIntelligence(absolutePath, quick);
-          return quick;
+        const quick = this.quickHeuristicIntelligence(absolutePath, textData.text || '', fields, Date.now() - startTime);
+        quick.metadata.provider = 'chatgpt';
+        quick.metadata.mode = 'heuristic';
+        if (!forcedProvider) {
+          if (!forcedProvider) {
+        setIntelligence(absolutePath, quick);
+      }
+        }
+        return quick;
         }
 
         // 2) extract-first: prefer cached, else attach to in-flight, else start new extraction with unified timeout
@@ -221,7 +257,11 @@ export class PDFIntelligenceService {
           // Ensure consistent provider/mode
           result.metadata.provider = 'chatgpt';
           result.metadata.mode = 'extract-first';
-          setIntelligence(absolutePath, result);
+          if (!forcedProvider) {
+            if (!forcedProvider) {
+        setIntelligence(absolutePath, result);
+      }
+          }
           return result;
         }
 
@@ -249,7 +289,9 @@ export class PDFIntelligenceService {
                 mode: 'codex-short'
               }
             };
+            if (!forcedProvider) {
             setIntelligence(absolutePath, combined);
+          }
             return combined;
           }
         } catch {}
@@ -258,14 +300,16 @@ export class PDFIntelligenceService {
         const quick = this.quickHeuristicIntelligence(absolutePath, textData.text || '', fields, Date.now() - startTime);
         quick.metadata.provider = 'chatgpt';
         quick.metadata.mode = 'heuristic';
+        if (!forcedProvider) {
         setIntelligence(absolutePath, quick);
+      }
         return quick;
       }
 
       // Gemini path unchanged
       const [summary, insights] = await Promise.all([
-        this.getDocumentSummary(absolutePath),
-        this.getQuickInsights(absolutePath)
+        this.getDocumentSummary(absolutePath, forcedProvider),
+        this.getQuickInsights(absolutePath, forcedProvider)
       ]);
 
       let result: IntelligenceResult = {
@@ -285,7 +329,7 @@ export class PDFIntelligenceService {
         (!summary?.title || summary.title === 'Document') &&
         (insights?.keyInsights?.length || 0) < 2
       );
-      if (maybeWeak) {
+      if (maybeWeak && forcedProvider !== 'gemini') {
         try {
           const codexOk2 = await this.codex.checkAuthStatus();
           const geminiOk2 = await this.gemini.checkAuthStatus();
@@ -318,7 +362,9 @@ export class PDFIntelligenceService {
       }
 
       // Cache and return
-      setIntelligence(absolutePath, result);
+      if (!forcedProvider) {
+        setIntelligence(absolutePath, result);
+      }
       return result;
     } catch (error: any) {
       console.error('Intelligence analysis failed:', error);
@@ -329,7 +375,7 @@ export class PDFIntelligenceService {
   /**
    * Get a quick document summary
    */
-  private async getDocumentSummary(pdfPath: string): Promise<DocumentSummary> {
+  private async getDocumentSummary(pdfPath: string, forcedProvider?: 'gemini' | 'codex'): Promise<DocumentSummary> {
     const prompt = `Look at the PDF document at: ${pdfPath}
 
 Quickly tell me:
@@ -354,8 +400,29 @@ Return ONLY a JSON object like this:
         this.gemini.checkAuthStatus()
       ]);
 
+      let providerChoice: 'codex' | 'gemini';
+      if (forcedProvider === 'codex') {
+        if (!codexOk) {
+          throw new Error('Preferred provider codex not available');
+        }
+        providerChoice = 'codex';
+      } else if (forcedProvider === 'gemini') {
+        if (!geminiOk) {
+          throw new Error('Preferred provider gemini not available');
+        }
+        providerChoice = 'gemini';
+      } else if (codexOk && !geminiOk) {
+        providerChoice = 'codex';
+      } else if (geminiOk) {
+        providerChoice = 'gemini';
+      } else if (codexOk) {
+        providerChoice = 'codex';
+      } else {
+        throw new Error('No AI providers available for summaries');
+      }
+
       let response: string;
-      if (codexOk && !geminiOk) {
+      if (providerChoice === 'codex') {
         // Try structured extract -> summarize path
         const textData = await this.pdf.extractFullTextPdfjs(pdfPath);
         const extract = await this.codexAI.extractFromText(textData.text || '');
@@ -395,7 +462,7 @@ Return ONLY a JSON object like this:
   /**
    * Get quick actionable insights
    */
-  private async getQuickInsights(pdfPath: string): Promise<QuickInsights> {
+  private async getQuickInsights(pdfPath: string, forcedProvider?: 'gemini' | 'codex'): Promise<QuickInsights> {
     const prompt = `Look at the PDF document at: ${pdfPath}
 
 Read the document and tell me:
@@ -419,8 +486,28 @@ Return ONLY valid JSON:
         this.codex.checkAuthStatus(),
         this.gemini.checkAuthStatus()
       ]);
+      let providerChoice: 'codex' | 'gemini';
+      if (forcedProvider === 'codex') {
+        if (!codexOk) {
+          throw new Error('Preferred provider codex not available');
+        }
+        providerChoice = 'codex';
+      } else if (forcedProvider === 'gemini') {
+        if (!geminiOk) {
+          throw new Error('Preferred provider gemini not available');
+        }
+        providerChoice = 'gemini';
+      } else if (codexOk && !geminiOk) {
+        providerChoice = 'codex';
+      } else if (geminiOk) {
+        providerChoice = 'gemini';
+      } else if (codexOk) {
+        providerChoice = 'codex';
+      } else {
+        throw new Error('No AI providers available for insights');
+      }
       let response: string;
-      if (codexOk && !geminiOk) {
+      if (providerChoice === 'codex') {
         const textData = await this.pdf.extractFullTextPdfjs(pdfPath);
         let fields: any[] = [];
         try { fields = await this.pdf.readFormFields(pdfPath); } catch {}

@@ -1,19 +1,31 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-Source lives in `src/`, with `electron.ts` handling the main Electron process, `server.ts` exposing the Express API, and domain helpers under `services/`, `utils/`, and `types/`. UI assets stay in `public/`, while icons and tray art sit in `assets/`. Generated JavaScript and packaged builds land in `dist/`. Temporary artifacts (`uploads/`, `temp/`) can be cleared safely, and `test-pdfs/` provides fixtures for manual and scripted checks. The Gemini CLI shim is in `gemini-cli-local/`; its `.gemini/` credentials directory is git-ignored.
+- `server/index.js`: Node MCP server exposing PDF tools shared by Claude Desktop and Cursor. Keep tool definitions and helper utilities here; prefer incremental updates over rewrites.
+- `pdf-filler-mcp-share/`: Packaged variant used by `package-for-friend.js`; mirror changes from `server/index.js` when APIs evolve.
+- `manifest.json` and `index.html`: Claude Desktop extension metadata and UI stub. Update versions alongside `package.json`.
+- `example-fw9.pdf`: Sample form for smoke tests. Keep anonymized assets only.
 
 ## Build, Test, and Development Commands
-Run `npm start` (alias `npm run electron`) to compile TypeScript and launch the Electron shell. Use `npm run dev` for a server-only watch loop, or `npm run server` / `npm run server:dev` to start the API from built output or ts-node, respectively. `npm run build:ts` performs a strict type-check and emits JS to `dist/`, while `npm run build` packages the desktop app via electron-builder. Initial setup flows through `npm run setup`; you'll authenticate Gemini with `npm run gemini-auth` and can exercise the CLI via `npm run gemini`. AI service smoke tests run with `npm run test:ai`.
+- `npm install`: install runtime dependencies (Node.js 18+).
+- `node server/index.js`: run the MCP server over stdio for local hosts (Cursor, Claude) and watch stderr for diagnostics.
+- `node package-for-friend.js`: regenerate `pdf-filler-mcp.zip`; requires the `zip` CLI and ensures shareable installers stay current.
+- `dxt pack`: rebuild the `.dxt` extension after code or asset updates; install via Claude Desktop to validate.
 
 ## Coding Style & Naming Conventions
-TypeScript is in strict mode; format with 2-space indentation, single quotes, and semicolons. Name variables and functions in `camelCase`, classes and types in `PascalCase`, and environment variables in `SCREAMING_SNAKE_CASE`. File names follow kebab-case (`pdf-service.ts`), and service modules prefer the `.service.ts` suffix. Keep modules focused and colocate shared helpers in `src/utils/`.
+- Use 2-space indentation, `const`/`let` semantics, and double-quoted strings to match `server/index.js` and shipped bundles.
+- Favor composable helpers over inlined logic; reuse `resolvePath`, `fillPdfFields`, and profile utilities instead of duplicating them.
+- Tool names stay snake_case (`list_pdfs`, `fill_pdf`); new tools should follow that pattern and return structured text blocks.
 
 ## Testing Guidelines
-Lightweight ts-node scripts (`src/test-*.ts`) act as unit or integration probes; mirror that pattern when adding coverage. Use `npm run build:ts` as a gate before commits, then validate Electron startup (`npm start`) and critical API flows. Reference assets in `test-pdfs/` when scripting PDF scenarios, and document any manual validation steps in PR descriptions.
+- No automated test suite yet; perform manual runs against `example-fw9.pdf` via the MCP host. Exercise `list_pdfs`, `read_pdf_fields`, `fill_pdf`, and one profile flow.
+- Validate CSV workflows with a two-row fixture before publishing. Check stdout for ✓/✗ markers and confirm generated files open cleanly.
 
 ## Commit & Pull Request Guidelines
-Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`). PRs should outline the change, link related issues, and include screenshots or GIFs for UI impacts—macOS remains the primary target. List the commands you ran (e.g., `npm run build:ts`, `npm start`) and note any manual test matrix.
+- Follow the existing imperative subject style (`Update index.html to improve structure`). Group related changes and note version bumps explicitly.
+- Include PR context: summary of affected tools, manual test evidence, linked issue if applicable, and screenshots only when UI assets change.
+- Regenerate artifacts (`pdf-filler-mcp.zip`, `.dxt`) in separate commits or attach them to releases rather than merging binaries directly.
 
 ## Security & Configuration Tips
-Never commit credentials; ensure `gemini-cli-local/.gemini/`, `uploads/`, and `temp/` stay untracked. Configure runtime options through `.env` (created via `npm run setup`), covering ports, rate limits, and file caps. Packaged apps log to `userData/app.log`; avoid capturing sensitive PDF contents.
+- Never hard-code personal paths; rely on `resolvePath` and default directories (`~/Documents`, `~/.pdf-filler-profiles`).
+- Scrub PDFs or CSVs before committing, and point contributors to local-only credentials files when testing protected documents.
